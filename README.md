@@ -180,7 +180,7 @@ picoclaw gateway
 </details>
 
 <details>
-<summary><b>Slack (Socket Mode)</b></summary>
+<summary><b>Slack</b></summary>
 
 Uses **Socket Mode** (no public URL required). picoclaw currently supports Socket Mode only.
 
