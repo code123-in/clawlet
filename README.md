@@ -1,17 +1,15 @@
 <div align="center">
   <img src="clawlet.png" alt="clawlet" width="500">
-  <h1>clawlet: Lightweight Personal AI Assistant <br>Single Binary, Simple Setup</h1>
+  <h1>Clawlet: Lightweight Personal AI Assistant</h1>
 </div>
 
 This project is inspired by **OpenClaw** and **nanobot**.
 
-## Why clawlet
+## Why Clawlet
 
-📦 **Single binary, small footprint**: Runs as one executable with minimal moving parts.
-
-📖 **Readable**: Straightforward organization so it’s easy to understand, modify, and extend.
-
-✅ **Easy to adopt**: `onboard` creates a ready-to-edit workspace and config; you can start chatting immediately.
+⚡ **Fast and lightweight**: Runs quickly with minimal CPU and memory usage — comfortable even on low-spec machines.
+📦 **Single binary**: One executable, no dependencies, no configuration needed.
+📖 **Readable codebase**: Clean and straightforward structure — easy to understand, modify, and extend.
 
 ## Install
 
