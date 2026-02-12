@@ -8,12 +8,12 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/slack-go/slack v0.17.3
 	github.com/urfave/cli/v3 v3.6.2
-	golang.org/x/net v0.49.0
+	golang.org/x/net v0.50.0
 )
 
 require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	golang.org/x/crypto v0.47.0 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 )
