@@ -24,7 +24,6 @@ import (
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
-	"google.golang.org/protobuf/proto"
 
 	_ "modernc.org/sqlite"
 )
@@ -331,14 +330,14 @@ func buildOutboundMessage(text, replyToID string) *waE2E.Message {
 	if strings.TrimSpace(replyToID) != "" {
 		return &waE2E.Message{
 			ExtendedTextMessage: &waE2E.ExtendedTextMessage{
-				Text: proto.String(text),
+				Text: new(text),
 				ContextInfo: &waE2E.ContextInfo{
-					StanzaID: proto.String(strings.TrimSpace(replyToID)),
+					StanzaID: new(strings.TrimSpace(replyToID)),
 				},
 			},
 		}
 	}
-	return &waE2E.Message{Conversation: proto.String(text)}
+	return &waE2E.Message{Conversation: new(text)}
 }
 
 func resolveWhatsAppReplyTarget(msg bus.OutboundMessage) string {
@@ -387,15 +386,9 @@ func whatsappSendBackoff(attempt int) time.Duration {
 
 func whatsappSenderID(info types.MessageInfo) string {
 	parts := make([]string, 0, 3)
-	if v := strings.TrimSpace(info.Sender.User); v != "" {
-		parts = append(parts, v)
-	}
-	if v := strings.TrimSpace(info.Sender.ToNonAD().String()); v != "" && !contains(parts, v) {
-		parts = append(parts, v)
-	}
-	if v := strings.TrimSpace(info.SenderAlt.User); v != "" && !contains(parts, v) {
-		parts = append(parts, v)
-	}
+	parts = appendUniqueTrimmed(parts, info.Sender.User)
+	parts = appendUniqueTrimmed(parts, info.Sender.ToNonAD().String())
+	parts = appendUniqueTrimmed(parts, info.SenderAlt.User)
 	if len(parts) == 0 {
 		return ""
 	}
@@ -459,11 +452,15 @@ func whatsappReplyToID(msg *waE2E.Message) string {
 	return ""
 }
 
-func contains(vals []string, v string) bool {
-	for _, existing := range vals {
+func appendUniqueTrimmed(parts []string, v string) []string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return parts
+	}
+	for _, existing := range parts {
 		if existing == v {
-			return true
+			return parts
 		}
 	}
-	return false
+	return append(parts, v)
 }

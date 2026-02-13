@@ -180,7 +180,9 @@ func (c *Channel) onUpdate(ctx context.Context, _ *tgbot.Bot, up *models.Update)
 	}
 
 	chatID := strconv.FormatInt(msg.Chat.ID, 10)
-	_ = c.bus.PublishInbound(ctx, bus.InboundMessage{
+	// Avoid blocking telegram worker goroutines indefinitely when bus is saturated.
+	publishCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	_ = c.bus.PublishInbound(publishCtx, bus.InboundMessage{
 		Channel:    "telegram",
 		SenderID:   senderID,
 		ChatID:     chatID,
@@ -188,6 +190,7 @@ func (c *Channel) onUpdate(ctx context.Context, _ *tgbot.Bot, up *models.Update)
 		SessionKey: "telegram:" + chatID,
 		Delivery:   buildTelegramDelivery(msg),
 	})
+	cancel()
 }
 
 func parseTelegramChatID(v string) (any, error) {
@@ -233,11 +236,11 @@ func isTelegram5xxError(err error) bool {
 		return false
 	}
 	msg := err.Error()
-	idx := strings.Index(msg, "sendMessage, ")
-	if idx < 0 {
+	_, after, ok := strings.Cut(msg, "sendMessage, ")
+	if !ok {
 		return false
 	}
-	rest := msg[idx+len("sendMessage, "):]
+	rest := after
 	if len(rest) < 3 {
 		return false
 	}

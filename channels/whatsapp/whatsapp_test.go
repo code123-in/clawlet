@@ -10,7 +10,6 @@ import (
 	"go.mau.fi/whatsmeow"
 	waE2E "go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestResolveWhatsAppReplyTarget(t *testing.T) {
@@ -79,21 +78,21 @@ func TestBuildOutboundMessage(t *testing.T) {
 
 func TestWhatsAppMessageContent(t *testing.T) {
 	t.Run("conversation", func(t *testing.T) {
-		msg := &waE2E.Message{Conversation: proto.String("hi")}
+		msg := &waE2E.Message{Conversation: new("hi")}
 		if got := whatsappMessageContent(msg); got != "hi" {
 			t.Fatalf("got %q", got)
 		}
 	})
 
 	t.Run("document fallback", func(t *testing.T) {
-		msg := &waE2E.Message{DocumentMessage: &waE2E.DocumentMessage{FileName: proto.String("a.pdf")}}
+		msg := &waE2E.Message{DocumentMessage: &waE2E.DocumentMessage{FileName: new("a.pdf")}}
 		if got := whatsappMessageContent(msg); got != "[Document] a.pdf" {
 			t.Fatalf("got %q", got)
 		}
 	})
 
 	t.Run("reaction", func(t *testing.T) {
-		msg := &waE2E.Message{ReactionMessage: &waE2E.ReactionMessage{Text: proto.String("👍")}}
+		msg := &waE2E.Message{ReactionMessage: &waE2E.ReactionMessage{Text: new("👍")}}
 		if got := whatsappMessageContent(msg); got != "[Reaction] 👍" {
 			t.Fatalf("got %q", got)
 		}
@@ -103,9 +102,9 @@ func TestWhatsAppMessageContent(t *testing.T) {
 func TestWhatsAppReplyToID(t *testing.T) {
 	msg := &waE2E.Message{
 		ExtendedTextMessage: &waE2E.ExtendedTextMessage{
-			Text: proto.String("hello"),
+			Text: new("hello"),
 			ContextInfo: &waE2E.ContextInfo{
-				StanzaID: proto.String("wamid.prev"),
+				StanzaID: new("wamid.prev"),
 			},
 		},
 	}
