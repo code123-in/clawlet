@@ -2,7 +2,10 @@ package discord
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -120,22 +123,26 @@ func (c *Channel) Send(ctx context.Context, msg bus.OutboundMessage) error {
 	}
 
 	replyToID := resolveDiscordReplyTarget(msg)
-	if replyToID == "" {
-		_, err := dg.ChannelMessageSend(chID, content)
-		return err
+	const maxAttempts = 3
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		err := sendDiscordMessage(dg, chID, content, replyToID)
+		if err == nil {
+			return nil
+		}
+		retry, wait := shouldRetryDiscordSend(err, attempt)
+		if !retry || attempt == maxAttempts {
+			return err
+		}
+		log.Printf("discord: send failed (%d/%d), retry in %s: %v", attempt, maxAttempts, wait, err)
+		t := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return ctx.Err()
+		case <-t.C:
+		}
 	}
-
-	_, err := dg.ChannelMessageSendComplex(chID, &discordgo.MessageSend{
-		Content: content,
-		Reference: &discordgo.MessageReference{
-			MessageID: replyToID,
-			ChannelID: chID,
-		},
-		AllowedMentions: &discordgo.MessageAllowedMentions{
-			RepliedUser: false,
-		},
-	})
-	return err
+	return nil
 }
 
 func (c *Channel) onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -193,4 +200,64 @@ func buildDiscordDelivery(m *discordgo.MessageCreate) bus.Delivery {
 		d.ReplyToID = strings.TrimSpace(m.ReferencedMessage.ID)
 	}
 	return d
+}
+
+func sendDiscordMessage(dg *discordgo.Session, chID, content, replyToID string) error {
+	if replyToID == "" {
+		_, err := dg.ChannelMessageSend(chID, content)
+		return err
+	}
+	_, err := dg.ChannelMessageSendComplex(chID, &discordgo.MessageSend{
+		Content: content,
+		Reference: &discordgo.MessageReference{
+			MessageID: replyToID,
+			ChannelID: chID,
+		},
+		AllowedMentions: &discordgo.MessageAllowedMentions{
+			RepliedUser: false,
+		},
+	})
+	return err
+}
+
+func shouldRetryDiscordSend(err error, attempt int) (bool, time.Duration) {
+	if err == nil {
+		return false, 0
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false, 0
+	}
+
+	// discordgo already retries 429 by default, but handle this for safety.
+	var rlErr *discordgo.RateLimitError
+	if errors.As(err, &rlErr) {
+		if rlErr.RetryAfter > 0 {
+			return true, rlErr.RetryAfter
+		}
+		return true, discordSendBackoff(attempt)
+	}
+
+	var restErr *discordgo.RESTError
+	if errors.As(err, &restErr) && restErr.Response != nil {
+		code := restErr.Response.StatusCode
+		if code == http.StatusTooManyRequests || (code >= 500 && code <= 599) {
+			return true, discordSendBackoff(attempt)
+		}
+		return false, 0
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary()) {
+		return true, discordSendBackoff(attempt)
+	}
+
+	return false, 0
+}
+
+func discordSendBackoff(attempt int) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+	shift := min(attempt-1, 4)
+	return 300 * time.Millisecond * time.Duration(1<<shift)
 }

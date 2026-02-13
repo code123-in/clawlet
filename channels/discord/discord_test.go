@@ -1,7 +1,10 @@
 package discord
 
 import (
+	"context"
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/mosaxiv/clawlet/bus"
@@ -62,6 +65,48 @@ func TestBuildDiscordDelivery(t *testing.T) {
 		d := buildDiscordDelivery(m)
 		if d.MessageID != "m2" || d.ReplyToID != "r2" || d.IsDirect {
 			t.Fatalf("unexpected delivery: %+v", d)
+		}
+	})
+}
+
+func TestShouldRetryDiscordSend(t *testing.T) {
+	t.Run("rate limit", func(t *testing.T) {
+		err := &discordgo.RateLimitError{
+			RateLimit: &discordgo.RateLimit{
+				TooManyRequests: &discordgo.TooManyRequests{RetryAfter: 2 * time.Second},
+				URL:             "/channels/1/messages",
+			},
+		}
+		retry, wait := shouldRetryDiscordSend(err, 1)
+		if !retry || wait != 2*time.Second {
+			t.Fatalf("expected rate-limit retry, got retry=%v wait=%v", retry, wait)
+		}
+	})
+
+	t.Run("rest 5xx", func(t *testing.T) {
+		err := &discordgo.RESTError{
+			Response: &http.Response{StatusCode: http.StatusBadGateway, Status: "502 Bad Gateway"},
+		}
+		retry, wait := shouldRetryDiscordSend(err, 2)
+		if !retry || wait <= 0 {
+			t.Fatalf("expected 5xx retry, got retry=%v wait=%v", retry, wait)
+		}
+	})
+
+	t.Run("rest 4xx no retry", func(t *testing.T) {
+		err := &discordgo.RESTError{
+			Response: &http.Response{StatusCode: http.StatusBadRequest, Status: "400 Bad Request"},
+		}
+		retry, wait := shouldRetryDiscordSend(err, 1)
+		if retry || wait != 0 {
+			t.Fatalf("expected no retry, got retry=%v wait=%v", retry, wait)
+		}
+	})
+
+	t.Run("context canceled no retry", func(t *testing.T) {
+		retry, wait := shouldRetryDiscordSend(context.Canceled, 1)
+		if retry || wait != 0 {
+			t.Fatalf("expected no retry, got retry=%v wait=%v", retry, wait)
 		}
 	})
 }
