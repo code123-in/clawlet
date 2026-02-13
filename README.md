@@ -222,7 +222,7 @@ Example config (merge into `~/.clawlet/config.json`):
       "enabled": true,
       "accessToken": "EAAG...",
       "phoneNumberId": "123456789012345",
-      "apiVersion": "v23.0",
+      "apiVersion": "v24.0",
       "verifyToken": "change-me",
       "appSecret": "your-app-secret",
       "webhookListen": "127.0.0.1:18791",

@@ -26,7 +26,7 @@ import (
 
 const (
 	defaultWhatsAppBaseURL       = "https://graph.facebook.com"
-	defaultWhatsAppAPIVersion    = "v23.0"
+	defaultWhatsAppAPIVersion    = "v24.0"
 	defaultWhatsAppWebhookPath   = "/whatsapp/webhook"
 	defaultWhatsAppWebhookListen = "127.0.0.1:18791"
 )

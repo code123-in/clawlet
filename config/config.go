@@ -232,7 +232,7 @@ func Default() *Config {
 				AllowFrom:     nil,
 				AccessToken:   "",
 				PhoneNumberID: "",
-				APIVersion:    "v23.0",
+				APIVersion:    "v24.0",
 				BaseURL:       "https://graph.facebook.com",
 				WebhookListen: "127.0.0.1:18791",
 				WebhookPath:   "/whatsapp/webhook",
@@ -300,7 +300,7 @@ func Load(path string) (*Config, error) {
 		cfg.Channels.Telegram.PollTimeoutSec = 25
 	}
 	if strings.TrimSpace(cfg.Channels.WhatsApp.APIVersion) == "" {
-		cfg.Channels.WhatsApp.APIVersion = "v23.0"
+		cfg.Channels.WhatsApp.APIVersion = "v24.0"
 	}
 	if strings.TrimSpace(cfg.Channels.WhatsApp.BaseURL) == "" {
 		cfg.Channels.WhatsApp.BaseURL = "https://graph.facebook.com"
