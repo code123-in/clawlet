@@ -193,10 +193,6 @@ Example config (merge into `~/.clawlet/config.json`):
 Then run:
 
 ```bash
-# one-time/maintenance login flow
-clawlet channels login --channel whatsapp
-
-# normal runtime
 clawlet gateway
 ```
 
@@ -208,8 +204,10 @@ clawlet gateway
 Uses **whatsmeow** (WhatsApp Web Multi-Device). No Meta webhook/public endpoint is required.
 
 1. Enable channel and (recommended) set `allowFrom`.
-2. Start `clawlet gateway`.
-3. On first connect, scan the QR shown in terminal from WhatsApp `Linked devices`.
+2. Run login once:
+   - `clawlet channels login --channel whatsapp`
+   - Scan the QR shown in terminal from WhatsApp `Linked devices`.
+3. Start normal runtime with `clawlet gateway`.
 
 Example config (merge into `~/.clawlet/config.json`):
 
@@ -227,6 +225,10 @@ Example config (merge into `~/.clawlet/config.json`):
 Then run:
 
 ```bash
+# one-time login (required before gateway)
+clawlet channels login --channel whatsapp
+
+# normal runtime
 clawlet gateway
 ```
 
@@ -234,6 +236,7 @@ Notes:
 - Send retries are applied for transient/rate-limit errors with exponential backoff.
 - Session state is persisted by default at `~/.clawlet/whatsapp-auth/session.db`.
 - You can override store path with `sessionStorePath` if needed.
+- `clawlet gateway` does not perform QR login; if not linked, it exits with a login command hint.
 
 </details>
 

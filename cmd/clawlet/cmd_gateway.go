@@ -124,6 +124,13 @@ func cmdGateway() *cli.Command {
 				cm.Add(telegram.New(cfg.Channels.Telegram, b))
 			}
 			if cfg.Channels.WhatsApp.Enabled {
+				linked, err := whatsapp.IsLinked(ctx, cfg.Channels.WhatsApp)
+				if err != nil {
+					return fmt.Errorf("whatsapp link check failed: %w", err)
+				}
+				if !linked {
+					return fmt.Errorf("whatsapp is not linked; run: clawlet channels login --channel whatsapp")
+				}
 				cm.Add(whatsapp.New(cfg.Channels.WhatsApp, b))
 			}
 

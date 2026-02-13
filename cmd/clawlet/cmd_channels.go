@@ -70,7 +70,7 @@ func runWhatsAppLogin(ctx context.Context, cfg config.WhatsAppConfig) error {
 	fmt.Println("starting whatsapp login flow")
 	fmt.Println("scan QR code if shown. stop: Ctrl+C")
 
-	ch := whatsapp.New(cfg, bus.New(8))
+	ch := whatsapp.NewLogin(cfg, bus.New(8))
 	err := ch.Start(ctx)
 	if err == nil || errors.Is(err, context.Canceled) {
 		return nil

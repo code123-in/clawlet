@@ -34,6 +34,7 @@ type Channel struct {
 	allow channels.AllowList
 
 	sessionStorePath string
+	allowQRLogin     bool
 
 	running atomic.Bool
 
@@ -44,11 +45,20 @@ type Channel struct {
 }
 
 func New(cfg config.WhatsAppConfig, b *bus.Bus) *Channel {
+	return newChannel(cfg, b, false)
+}
+
+func NewLogin(cfg config.WhatsAppConfig, b *bus.Bus) *Channel {
+	return newChannel(cfg, b, true)
+}
+
+func newChannel(cfg config.WhatsAppConfig, b *bus.Bus, allowQRLogin bool) *Channel {
 	return &Channel{
 		cfg:              cfg,
 		bus:              b,
 		allow:            channels.AllowList{AllowFrom: cfg.AllowFrom},
 		sessionStorePath: resolveWhatsAppSessionStorePath(cfg.SessionStorePath),
+		allowQRLogin:     allowQRLogin,
 	}
 }
 
@@ -87,6 +97,9 @@ func (c *Channel) Start(ctx context.Context) error {
 
 	var qrChan <-chan whatsmeow.QRChannelItem
 	if wa.Store.ID == nil {
+		if !c.allowQRLogin {
+			return fmt.Errorf("whatsapp is not linked; run: clawlet channels login --channel whatsapp")
+		}
 		qrChan, err = wa.GetQRChannel(runCtx)
 		if err != nil {
 			return err
@@ -220,13 +233,7 @@ func (c *Channel) handleIncomingMessage(evt *events.Message) {
 }
 
 func newPersistentClient(ctx context.Context, sessionStorePath string) (*sqlstore.Container, *whatsmeow.Client, error) {
-	storePath := resolveWhatsAppSessionStorePath(sessionStorePath)
-	storeDir := filepath.Dir(storePath)
-	if err := os.MkdirAll(storeDir, 0o700); err != nil {
-		return nil, nil, err
-	}
-	dsn := sqliteFileDSN(storePath)
-	db, err := sqlstore.New(ctx, "sqlite", dsn, waLog.Noop)
+	db, err := openPersistentStore(ctx, sessionStorePath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -237,6 +244,34 @@ func newPersistentClient(ctx context.Context, sessionStorePath string) (*sqlstor
 	}
 	wa := whatsmeow.NewClient(store, waLog.Noop)
 	return db, wa, nil
+}
+
+func IsLinked(ctx context.Context, cfg config.WhatsAppConfig) (bool, error) {
+	db, err := openPersistentStore(ctx, cfg.SessionStorePath)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = db.Close() }()
+
+	store, err := db.GetFirstDevice(ctx)
+	if err != nil {
+		return false, err
+	}
+	return store.ID != nil, nil
+}
+
+func openPersistentStore(ctx context.Context, sessionStorePath string) (*sqlstore.Container, error) {
+	storePath := resolveWhatsAppSessionStorePath(sessionStorePath)
+	storeDir := filepath.Dir(storePath)
+	if err := os.MkdirAll(storeDir, 0o700); err != nil {
+		return nil, err
+	}
+	dsn := sqliteFileDSN(storePath)
+	db, err := sqlstore.New(ctx, "sqlite", dsn, waLog.Noop)
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }
 
 func resolveWhatsAppSessionStorePath(v string) string {
