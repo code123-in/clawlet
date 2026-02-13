@@ -183,8 +183,7 @@ Example config (merge into `~/.clawlet/config.json`):
     "telegram": {
       "enabled": true,
       "token": "123456:ABCDEF...",
-      "allowFrom": ["123456789"],
-      "pollTimeoutSec": 25
+      "allowFrom": ["123456789"]
     }
   }
 }

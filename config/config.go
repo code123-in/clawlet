@@ -215,12 +215,11 @@ func Default() *Config {
 				DM:             &SlackDMConfig{Enabled: true},
 			},
 			Telegram: TelegramConfig{
-				Enabled:        false,
-				Token:          "",
-				AllowFrom:      nil,
-				BaseURL:        "https://api.telegram.org",
-				PollTimeoutSec: 25,
-				Workers:        2,
+				Enabled:   false,
+				Token:     "",
+				AllowFrom: nil,
+				BaseURL:   "https://api.telegram.org",
+				Workers:   2,
 			},
 			WhatsApp: WhatsAppConfig{
 				Enabled:   false,
