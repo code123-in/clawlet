@@ -38,6 +38,7 @@ func cmdStatus() *cli.Command {
 			fmt.Printf("channels.discord.enabled: %v\n", cfg.Channels.Discord.Enabled)
 			fmt.Printf("channels.slack.enabled: %v\n", cfg.Channels.Slack.Enabled)
 			fmt.Printf("channels.telegram.enabled: %v\n", cfg.Channels.Telegram.Enabled)
+			fmt.Printf("channels.whatsapp.enabled: %v\n", cfg.Channels.WhatsApp.Enabled)
 			return nil
 		},
 	}

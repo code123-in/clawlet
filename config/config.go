@@ -108,6 +108,7 @@ type ChannelsConfig struct {
 	Discord  DiscordConfig  `json:"discord"`
 	Slack    SlackConfig    `json:"slack"`
 	Telegram TelegramConfig `json:"telegram"`
+	WhatsApp WhatsAppConfig `json:"whatsapp"`
 }
 
 type DiscordConfig struct {
@@ -143,6 +144,20 @@ type TelegramConfig struct {
 	AllowFrom      []string `json:"allowFrom"`
 	BaseURL        string   `json:"baseURL,omitempty"` // default: https://api.telegram.org
 	PollTimeoutSec int      `json:"pollTimeoutSec,omitempty"`
+}
+
+// WhatsApp (Cloud API + Webhook).
+type WhatsAppConfig struct {
+	Enabled       bool     `json:"enabled"`
+	AllowFrom     []string `json:"allowFrom"`
+	AccessToken   string   `json:"accessToken"`             // Meta access token
+	PhoneNumberID string   `json:"phoneNumberId"`           // WhatsApp business phone number ID
+	APIVersion    string   `json:"apiVersion,omitempty"`    // default: v23.0
+	BaseURL       string   `json:"baseURL,omitempty"`       // default: https://graph.facebook.com
+	WebhookListen string   `json:"webhookListen,omitempty"` // default: 127.0.0.1:18791
+	WebhookPath   string   `json:"webhookPath,omitempty"`   // default: /whatsapp/webhook
+	VerifyToken   string   `json:"verifyToken"`             // webhook verification token
+	AppSecret     string   `json:"appSecret,omitempty"`     // optional: validate X-Hub-Signature-256
 }
 
 const (
@@ -212,6 +227,18 @@ func Default() *Config {
 				BaseURL:        "https://api.telegram.org",
 				PollTimeoutSec: 25,
 			},
+			WhatsApp: WhatsAppConfig{
+				Enabled:       false,
+				AllowFrom:     nil,
+				AccessToken:   "",
+				PhoneNumberID: "",
+				APIVersion:    "v23.0",
+				BaseURL:       "https://graph.facebook.com",
+				WebhookListen: "127.0.0.1:18791",
+				WebhookPath:   "/whatsapp/webhook",
+				VerifyToken:   "",
+				AppSecret:     "",
+			},
 		},
 	}
 }
@@ -271,6 +298,18 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Channels.Telegram.PollTimeoutSec <= 0 {
 		cfg.Channels.Telegram.PollTimeoutSec = 25
+	}
+	if strings.TrimSpace(cfg.Channels.WhatsApp.APIVersion) == "" {
+		cfg.Channels.WhatsApp.APIVersion = "v23.0"
+	}
+	if strings.TrimSpace(cfg.Channels.WhatsApp.BaseURL) == "" {
+		cfg.Channels.WhatsApp.BaseURL = "https://graph.facebook.com"
+	}
+	if strings.TrimSpace(cfg.Channels.WhatsApp.WebhookListen) == "" {
+		cfg.Channels.WhatsApp.WebhookListen = "127.0.0.1:18791"
+	}
+	if strings.TrimSpace(cfg.Channels.WhatsApp.WebhookPath) == "" {
+		cfg.Channels.WhatsApp.WebhookPath = "/whatsapp/webhook"
 	}
 
 	// Apply model routing to populate cfg.LLM for runtime use.

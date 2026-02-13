@@ -13,6 +13,7 @@ import (
 	"github.com/mosaxiv/clawlet/channels/discord"
 	"github.com/mosaxiv/clawlet/channels/slack"
 	"github.com/mosaxiv/clawlet/channels/telegram"
+	"github.com/mosaxiv/clawlet/channels/whatsapp"
 	"github.com/mosaxiv/clawlet/cron"
 	"github.com/mosaxiv/clawlet/heartbeat"
 	"github.com/mosaxiv/clawlet/paths"
@@ -121,6 +122,18 @@ func cmdGateway() *cli.Command {
 					return fmt.Errorf("telegram enabled but token is empty")
 				}
 				cm.Add(telegram.New(cfg.Channels.Telegram, b))
+			}
+			if cfg.Channels.WhatsApp.Enabled {
+				if strings.TrimSpace(cfg.Channels.WhatsApp.AccessToken) == "" {
+					return fmt.Errorf("whatsapp enabled but accessToken is empty")
+				}
+				if strings.TrimSpace(cfg.Channels.WhatsApp.PhoneNumberID) == "" {
+					return fmt.Errorf("whatsapp enabled but phoneNumberId is empty")
+				}
+				if strings.TrimSpace(cfg.Channels.WhatsApp.VerifyToken) == "" {
+					return fmt.Errorf("whatsapp enabled but verifyToken is empty")
+				}
+				cm.Add(whatsapp.New(cfg.Channels.WhatsApp, b))
 			}
 
 			if err := cm.StartAll(ctx); err != nil {
