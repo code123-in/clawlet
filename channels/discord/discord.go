@@ -119,7 +119,22 @@ func (c *Channel) Send(ctx context.Context, msg bus.OutboundMessage) error {
 	default:
 	}
 
-	_, err := dg.ChannelMessageSend(chID, content)
+	replyToID := resolveDiscordReplyTarget(msg)
+	if replyToID == "" {
+		_, err := dg.ChannelMessageSend(chID, content)
+		return err
+	}
+
+	_, err := dg.ChannelMessageSendComplex(chID, &discordgo.MessageSend{
+		Content: content,
+		Reference: &discordgo.MessageReference{
+			MessageID: replyToID,
+			ChannelID: chID,
+		},
+		AllowedMentions: &discordgo.MessageAllowedMentions{
+			RepliedUser: false,
+		},
+	})
 	return err
 }
 
@@ -152,5 +167,30 @@ func (c *Channel) onMessageCreate(s *discordgo.Session, m *discordgo.MessageCrea
 		ChatID:     chID,
 		Content:    content,
 		SessionKey: "discord:" + chID,
+		Delivery:   buildDiscordDelivery(m),
 	})
+}
+
+func resolveDiscordReplyTarget(msg bus.OutboundMessage) string {
+	if replyTo := strings.TrimSpace(msg.Delivery.ReplyToID); replyTo != "" {
+		return replyTo
+	}
+	return strings.TrimSpace(msg.ReplyTo)
+}
+
+func buildDiscordDelivery(m *discordgo.MessageCreate) bus.Delivery {
+	if m == nil || m.Message == nil {
+		return bus.Delivery{}
+	}
+	d := bus.Delivery{
+		MessageID: strings.TrimSpace(m.ID),
+		IsDirect:  strings.TrimSpace(m.GuildID) == "",
+	}
+	if m.MessageReference != nil {
+		d.ReplyToID = strings.TrimSpace(m.MessageReference.MessageID)
+	}
+	if d.ReplyToID == "" && m.ReferencedMessage != nil {
+		d.ReplyToID = strings.TrimSpace(m.ReferencedMessage.ID)
+	}
+	return d
 }
