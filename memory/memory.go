@@ -11,6 +11,7 @@ type Store struct {
 	Workspace string
 	Dir       string
 	LongTerm  string
+	History   string
 }
 
 func New(workspace string) *Store {
@@ -19,6 +20,7 @@ func New(workspace string) *Store {
 		Workspace: workspace,
 		Dir:       dir,
 		LongTerm:  filepath.Join(dir, "MEMORY.md"),
+		History:   filepath.Join(dir, "HISTORY.md"),
 	}
 }
 
@@ -49,6 +51,13 @@ func (s *Store) ReadLongTerm() string {
 	return string(b)
 }
 
+func (s *Store) WriteLongTerm(content string) error {
+	if err := s.EnsureInitialized(); err != nil {
+		return err
+	}
+	return os.WriteFile(s.LongTerm, []byte(content), 0o644)
+}
+
 func (s *Store) ReadToday() string {
 	_ = s.EnsureInitialized()
 	p := s.TodayPath()
@@ -74,6 +83,34 @@ func (s *Store) GetContext() string {
 		return ""
 	}
 	return strings.Join(parts, "\n\n")
+}
+
+func (s *Store) AppendHistory(entry string) error {
+	entry = strings.TrimSpace(entry)
+	if entry == "" {
+		return nil
+	}
+	if err := s.EnsureInitialized(); err != nil {
+		return err
+	}
+	if _, err := os.Stat(s.History); err != nil {
+		if os.IsNotExist(err) {
+			if werr := os.WriteFile(s.History, []byte("# Session History\n\n"), 0o644); werr != nil {
+				return werr
+			}
+		} else {
+			return err
+		}
+	}
+	f, err := os.OpenFile(s.History, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err := f.WriteString(entry + "\n\n"); err != nil {
+		return err
+	}
+	return nil
 }
 
 func truncate(s string, max int) string {

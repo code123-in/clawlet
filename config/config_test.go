@@ -10,8 +10,12 @@ func TestAgentDefaults_MaxTokensTemperature(t *testing.T) {
 	if cfg.Agents.Defaults.TemperatureValue() != DefaultAgentTemperature {
 		t.Fatalf("temperature=%f", cfg.Agents.Defaults.TemperatureValue())
 	}
+	if cfg.Agents.Defaults.MemoryWindowValue() != DefaultAgentMemoryWindow {
+		t.Fatalf("memoryWindow=%d", cfg.Agents.Defaults.MemoryWindowValue())
+	}
 
 	cfg.Agents.Defaults.MaxTokens = 2048
+	cfg.Agents.Defaults.MemoryWindow = 80
 	temp := 0.0
 	cfg.Agents.Defaults.Temperature = &temp
 	if cfg.Agents.Defaults.MaxTokensValue() != 2048 {
@@ -19,6 +23,9 @@ func TestAgentDefaults_MaxTokensTemperature(t *testing.T) {
 	}
 	if cfg.Agents.Defaults.TemperatureValue() != 0.0 {
 		t.Fatalf("temperature=%f", cfg.Agents.Defaults.TemperatureValue())
+	}
+	if cfg.Agents.Defaults.MemoryWindowValue() != 80 {
+		t.Fatalf("memoryWindow=%d", cfg.Agents.Defaults.MemoryWindowValue())
 	}
 }
 

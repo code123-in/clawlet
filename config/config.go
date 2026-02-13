@@ -35,9 +35,10 @@ type AgentsConfig struct {
 }
 
 type AgentDefaultsConfig struct {
-	Model       string   `json:"model"`
-	MaxTokens   int      `json:"maxTokens,omitempty"`
-	Temperature *float64 `json:"temperature,omitempty"`
+	Model        string   `json:"model"`
+	MaxTokens    int      `json:"maxTokens,omitempty"`
+	Temperature  *float64 `json:"temperature,omitempty"`
+	MemoryWindow int      `json:"memoryWindow,omitempty"`
 }
 
 func (c AgentDefaultsConfig) MaxTokensValue() int {
@@ -52,6 +53,13 @@ func (c AgentDefaultsConfig) TemperatureValue() float64 {
 		return DefaultAgentTemperature
 	}
 	return *c.Temperature
+}
+
+func (c AgentDefaultsConfig) MemoryWindowValue() int {
+	if c.MemoryWindow <= 0 {
+		return DefaultAgentMemoryWindow
+	}
+	return c.MemoryWindow
 }
 
 type ToolsConfig struct {
@@ -157,6 +165,7 @@ type WhatsAppConfig struct {
 const (
 	DefaultAgentMaxTokens    = 8192
 	DefaultAgentTemperature  = 0.7
+	DefaultAgentMemoryWindow = 50
 	DefaultOpenAIBaseURL     = "https://api.openai.com/v1"
 	DefaultOpenRouterBaseURL = "https://openrouter.ai/api/v1"
 	DefaultAnthropicBaseURL  = "https://api.anthropic.com"
@@ -169,8 +178,11 @@ func Default() *Config {
 	cronEnabled := true
 	hbEnabled := true
 	return &Config{
-		Env:    map[string]string{},
-		Agents: AgentsConfig{Defaults: AgentDefaultsConfig{Model: "openrouter/openai/gpt-4o-mini"}},
+		Env: map[string]string{},
+		Agents: AgentsConfig{Defaults: AgentDefaultsConfig{
+			Model:        "openrouter/openai/gpt-4o-mini",
+			MemoryWindow: DefaultAgentMemoryWindow,
+		}},
 		LLM: LLMConfig{
 			Provider: "",
 			APIKey:   "",

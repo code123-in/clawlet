@@ -28,10 +28,11 @@ type Options struct {
 }
 
 type Agent struct {
-	cfg       *config.Config
-	workspace string
-	maxIters  int
-	verbose   bool
+	cfg          *config.Config
+	workspace    string
+	maxIters     int
+	memoryWindow int
+	verbose      bool
 
 	llm   *llm.Client
 	tools *tools.Registry
@@ -90,20 +91,27 @@ func New(opts Options) (*Agent, error) {
 	}
 
 	return &Agent{
-		cfg:        opts.Config,
-		workspace:  wsAbs,
-		maxIters:   opts.MaxIters,
-		verbose:    opts.Verbose,
-		llm:        c,
-		tools:      treg,
-		sessionDir: sdir,
-		sess:       sess,
+		cfg:          opts.Config,
+		workspace:    wsAbs,
+		maxIters:     opts.MaxIters,
+		memoryWindow: opts.Config.Agents.Defaults.MemoryWindowValue(),
+		verbose:      opts.Verbose,
+		llm:          c,
+		tools:        treg,
+		sessionDir:   sdir,
+		sess:         sess,
 	}, nil
 }
 
 func (a *Agent) Process(ctx context.Context, input string) (string, error) {
+	if done, err := maybeConsolidateSession(ctx, a.workspace, a.sess, a.memoryWindow, func(ctx context.Context, currentMemory, conversation string) (string, string, error) {
+		return summarizeConsolidationWithLLM(ctx, a.llm, currentMemory, conversation)
+	}); err == nil && done {
+		_ = session.Save(a.sessionDir, a.sess)
+	}
+
 	sys := a.systemPrompt()
-	history := a.sess.History(50)
+	history := a.sess.History(a.memoryWindow)
 	messages := make([]llm.Message, 0, 1+len(history)+1)
 	messages = append(messages, llm.Message{Role: "system", Content: sys})
 	for _, m := range history {

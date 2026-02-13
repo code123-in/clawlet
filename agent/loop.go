@@ -19,10 +19,11 @@ import (
 )
 
 type Loop struct {
-	cfg       *config.Config
-	workspace string
-	model     string
-	maxIters  int
+	cfg          *config.Config
+	workspace    string
+	model        string
+	maxIters     int
+	memoryWindow int
 
 	bus      *bus.Bus
 	sessions *session.Manager
@@ -66,6 +67,7 @@ func NewLoop(opts LoopOptions) (*Loop, error) {
 	if opts.MaxIters <= 0 {
 		opts.MaxIters = 20
 	}
+	memoryWindow := opts.Config.Agents.Defaults.MemoryWindowValue()
 	model := opts.Model
 	if strings.TrimSpace(model) == "" {
 		model = opts.Config.LLM.Model
@@ -109,17 +111,18 @@ func NewLoop(opts LoopOptions) (*Loop, error) {
 	}
 
 	return &Loop{
-		cfg:       opts.Config,
-		workspace: ws,
-		model:     model,
-		maxIters:  opts.MaxIters,
-		bus:       opts.Bus,
-		sessions:  smgr,
-		skills:    sloader,
-		llm:       client,
-		tools:     treg,
-		cron:      opts.Cron,
-		verbose:   opts.Verbose,
+		cfg:          opts.Config,
+		workspace:    ws,
+		model:        model,
+		maxIters:     opts.MaxIters,
+		memoryWindow: memoryWindow,
+		bus:          opts.Bus,
+		sessions:     smgr,
+		skills:       sloader,
+		llm:          client,
+		tools:        treg,
+		cron:         opts.Cron,
+		verbose:      opts.Verbose,
 	}, nil
 }
 
@@ -188,8 +191,13 @@ func (l *Loop) processDirect(ctx context.Context, content, sessionKey, channel, 
 	if err != nil {
 		return "", err
 	}
+	if done, err := maybeConsolidateSession(ctx, l.workspace, sess, l.memoryWindow, func(ctx context.Context, currentMemory, conversation string) (string, string, error) {
+		return summarizeConsolidationWithLLM(ctx, l.llm, currentMemory, conversation)
+	}); err == nil && done {
+		_ = l.sessions.Save(sess)
+	}
 
-	history := sess.History(50)
+	history := sess.History(l.memoryWindow)
 	messages := make([]llm.Message, 0, 1+len(history)+1)
 	system := l.buildSystemPrompt(channel, chatID)
 	messages = append(messages, llm.Message{Role: "system", Content: system})
