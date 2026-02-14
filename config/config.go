@@ -26,8 +26,9 @@ type LLMConfig struct {
 	Provider string            `json:"provider,omitempty"`
 	APIKey   string            `json:"apiKey"`
 	BaseURL  string            `json:"baseURL"`
-	Model    string            `json:"model"`
-	Headers  map[string]string `json:"headers,omitempty"`
+	Model      string            `json:"model"`
+	Headers    map[string]string `json:"headers,omitempty"`
+	CooldownMS int               `json:"cooldownMS,omitempty"`
 }
 
 type AgentsConfig struct {

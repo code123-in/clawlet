@@ -18,6 +18,7 @@ func main() {
 			cmdOnboard(),
 			cmdStatus(),
 			cmdAgent(),
+			cmdModels(),
 			cmdGateway(),
 			cmdChannels(),
 			cmdCron(),

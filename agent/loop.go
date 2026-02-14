@@ -93,6 +93,8 @@ func NewLoop(opts LoopOptions) (*Loop, error) {
 		MaxTokens:   opts.Config.Agents.Defaults.MaxTokensValue(),
 		Temperature: opts.Config.Agents.Defaults.Temperature,
 		Headers:     opts.Config.LLM.Headers,
+		Verbose:     opts.Verbose,
+		Cooldown:    time.Duration(opts.Config.LLM.CooldownMS) * time.Millisecond,
 	}
 
 	// Try to load base identity from IDENTITY.md
@@ -199,7 +201,6 @@ func (l *Loop) processDirect(ctx context.Context, content, sessionKey, channel, 
 	if err != nil {
 		return "", err
 	}
-	l.scheduleConsolidation(sessionKey, sess)
 
 	history := sess.History(l.memoryWindow)
 	messages := make([]llm.Message, 0, 1+len(history)+1)
@@ -246,6 +247,9 @@ func (l *Loop) processDirect(ctx context.Context, content, sessionKey, channel, 
 	sess.Add("user", content)
 	sess.AddWithTools("assistant", final, toolsUsed)
 	_ = l.sessions.Save(sess)
+
+	go l.scheduleConsolidation(sessionKey, sess)
+
 	return final, nil
 }
 
@@ -260,6 +264,9 @@ func (l *Loop) scheduleConsolidation(sessionKey string, sess *session.Session) {
 		return
 	}
 	go func() {
+		// Small delay to ensure any active main request connection is released
+		time.Sleep(2 * time.Second)
+
 		defer l.consolidationInFlight.Delete(sessionKey)
 
 		cctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)

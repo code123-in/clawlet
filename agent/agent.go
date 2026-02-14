@@ -80,6 +80,8 @@ func New(opts Options) (*Agent, error) {
 		MaxTokens:   opts.Config.Agents.Defaults.MaxTokensValue(),
 		Temperature: opts.Config.Agents.Defaults.Temperature,
 		Headers:     opts.Config.LLM.Headers,
+		Verbose:     opts.Verbose,
+		Cooldown:    time.Duration(opts.Config.LLM.CooldownMS) * time.Millisecond,
 	}
 
 	// Try to load base identity from IDENTITY.md
@@ -113,8 +115,6 @@ func New(opts Options) (*Agent, error) {
 }
 
 func (a *Agent) Process(ctx context.Context, input string) (string, error) {
-	a.scheduleConsolidation()
-
 	sys := a.systemPrompt()
 	history := a.sess.History(a.memoryWindow)
 	messages := make([]llm.Message, 0, 1+len(history)+1)
@@ -165,6 +165,9 @@ func (a *Agent) Process(ctx context.Context, input string) (string, error) {
 	a.sess.Add("user", input)
 	a.sess.AddWithTools("assistant", final, toolsUsed)
 	_ = session.Save(a.sessionDir, a.sess)
+
+	go a.scheduleConsolidation()
+
 	return final, nil
 }
 
@@ -185,6 +188,9 @@ func (a *Agent) scheduleConsolidation() {
 	a.consolidationMu.Unlock()
 
 	go func() {
+		// Small delay to ensure any active main request connection is released
+		time.Sleep(2 * time.Second)
+
 		defer func() {
 			a.consolidationMu.Lock()
 			a.consolidationRunning = false
