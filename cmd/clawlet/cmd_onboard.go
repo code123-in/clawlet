@@ -75,7 +75,7 @@ func cmdOnboard() *cli.Command {
 				}
 			}
 
-			if err := initWorkspace(wsAbs, agentName); err != nil {
+			if err := initWorkspace(wsAbs, agentName, cmd.Bool("overwrite")); err != nil {
 				return err
 			}
 
@@ -129,7 +129,7 @@ func saveMinimalConfig(path string, model string, openrouterKey string, openaiKe
 	return os.WriteFile(path, b, 0o600)
 }
 
-func initWorkspace(dir string, agentName string) error {
+func initWorkspace(dir string, agentName string, overwrite bool) error {
 	if err := os.MkdirAll(filepath.Join(dir, "memory"), 0o755); err != nil {
 		return err
 	}
@@ -159,7 +159,7 @@ func initWorkspace(dir string, agentName string) error {
 
 	for _, f := range files {
 		outPath := filepath.Join(dir, f.OutName)
-		if _, err := os.Stat(outPath); err == nil {
+		if _, err := os.Stat(outPath); err == nil && !overwrite {
 			continue
 		}
 		b, err := onboardTemplates.ReadFile(f.TmplPath)
