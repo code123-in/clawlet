@@ -99,14 +99,24 @@ func (c *Client) Chat(ctx context.Context, messages []Message, tools []ToolDefin
 			break
 		}
 
-		// Check for 429 Rate Limit
-		errStr := err.Error()
-		if strings.Contains(errStr, "429") || strings.Contains(strings.ToLower(errStr), "rate limit") || strings.Contains(strings.ToLower(errStr), "resource_exhausted") {
+		// Check for 429 Rate Limit or Timeouts
+		errStr := strings.ToLower(err.Error())
+		isRateLimit := strings.Contains(errStr, "429") || strings.Contains(errStr, "rate limit") || strings.Contains(errStr, "resource_exhausted")
+		isTimeout := strings.Contains(errStr, "timeout") || strings.Contains(errStr, "deadline exceeded")
+
+		if isRateLimit || isTimeout {
 			if try < maxTries {
 				wait := c.computeWaitDuration(errStr, try)
-				fmt.Fprintf(os.Stderr, "warning: llm rate limit detected (429), retrying in %s (attempt %d/%d)...\n", wait, try+1, maxTries)
+				
+				label := "rate limit"
+				if isTimeout {
+					label = "timeout"
+				}
+
+				fmt.Fprintf(os.Stderr, "warning: llm %s detected, retrying in %s (attempt %d/%d)...\n", label, wait, try+1, maxTries)
+				
 				if c.Verbose {
-					fmt.Printf("%s llm: 429 detected, retrying in %s (attempt %d/%d)...\n", time.Now().Format("15:04:05.000"), wait, try+1, maxTries)
+					fmt.Printf("%s llm: %s detected, retrying in %s (attempt %d/%d)...\n", time.Now().Format("15:04:05.000"), label, wait, try+1, maxTries)
 				}
 				
 				select {
