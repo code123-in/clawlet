@@ -95,6 +95,11 @@ func NewLoop(opts LoopOptions) (*Loop, error) {
 		Headers:     opts.Config.LLM.Headers,
 	}
 
+	// Try to load base identity from IDENTITY.md
+	if b, err := os.ReadFile(filepath.Join(ws, "IDENTITY.md")); err == nil {
+		client.SystemPrompt = string(b)
+	}
+
 	treg := &tools.Registry{
 		WorkspaceDir:        ws,
 		RestrictToWorkspace: opts.Config.Tools.RestrictToWorkspaceValue(),
@@ -281,8 +286,6 @@ func (l *Loop) scheduleConsolidation(sessionKey string, sess *session.Session) {
 func (l *Loop) buildSystemPrompt(channel, chatID string) string {
 	// Keep it simple and deterministic. Add progressive skill summary.
 	var b strings.Builder
-	b.WriteString("# clawlet\n\n")
-	b.WriteString("You are clawlet, a helpful AI assistant.\n")
 	b.WriteString("You can use tools to read/write/edit files, list directories, execute shell commands, fetch/search the web, schedule tasks, and spawn background subagents.\n\n")
 	b.WriteString("IMPORTANT: When replying to the current conversation, respond with plain text. Do not call the message tool.\n")
 	b.WriteString("Only use the message tool when you must send to a different channel/chat_id.\n\n")
@@ -299,7 +302,7 @@ func (l *Loop) buildSystemPrompt(channel, chatID string) string {
 	}
 
 	// Bootstrap files from workspace (optional).
-	for _, fn := range []string{"AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md", "IDENTITY.md"} {
+	for _, fn := range []string{"AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md"} {
 		p := filepath.Join(l.workspace, fn)
 		if bb, err := os.ReadFile(p); err == nil && len(bb) > 0 {
 			b.WriteString("## " + fn + "\n\n")

@@ -17,7 +17,8 @@ type Client struct {
 	MaxTokens   int
 	Temperature *float64
 	Headers     map[string]string
-	HTTP        HTTPDoer
+	HTTP         HTTPDoer
+	SystemPrompt string // Base system prompt to prepend
 }
 
 type HTTPDoer interface {
@@ -41,6 +42,12 @@ func (c *Client) Chat(ctx context.Context, messages []Message, tools []ToolDefin
 	if c.HTTP == nil {
 		c.HTTP = &http.Client{Timeout: 120 * time.Second}
 	}
+
+	// Inject base system prompt if provided
+	if strings.TrimSpace(c.SystemPrompt) != "" {
+		messages = append([]Message{{Role: "system", Content: c.SystemPrompt}}, messages...)
+	}
+
 	switch normalizeProvider(c.Provider) {
 	case "", "openai", "openrouter", "ollama":
 		return c.chatOpenAICompatible(ctx, messages, tools)

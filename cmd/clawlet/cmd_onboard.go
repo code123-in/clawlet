@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"embed"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"time"
 
@@ -30,6 +32,7 @@ func cmdOnboard() *cli.Command {
 			&cli.StringFlag{Name: "openai-api-key", Usage: "write env.OPENAI_API_KEY into config.json"},
 			&cli.StringFlag{Name: "anthropic-api-key", Usage: "write env.ANTHROPIC_API_KEY into config.json"},
 			&cli.StringFlag{Name: "gemini-api-key", Usage: "write env.GEMINI_API_KEY into config.json"},
+			&cli.StringFlag{Name: "name", Usage: "set the agent name (default: clawlet)"},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			cfgPath, err := paths.ConfigPath()
@@ -59,7 +62,20 @@ func cmdOnboard() *cli.Command {
 			if err != nil {
 				return err
 			}
-			if err := initWorkspace(wsAbs); err != nil {
+
+			agentName := cmd.String("name")
+			if agentName == "" {
+				fmt.Print("Enter agent name [clawlet]: ")
+				scanner := bufio.NewScanner(os.Stdin)
+				if scanner.Scan() {
+					agentName = strings.TrimSpace(scanner.Text())
+				}
+				if agentName == "" {
+					agentName = "clawlet"
+				}
+			}
+
+			if err := initWorkspace(wsAbs, agentName); err != nil {
 				return err
 			}
 
@@ -113,7 +129,7 @@ func saveMinimalConfig(path string, model string, openrouterKey string, openaiKe
 	return os.WriteFile(path, b, 0o600)
 }
 
-func initWorkspace(dir string) error {
+func initWorkspace(dir string, agentName string) error {
 	if err := os.MkdirAll(filepath.Join(dir, "memory"), 0o755); err != nil {
 		return err
 	}
@@ -125,7 +141,7 @@ func initWorkspace(dir string) error {
 		AgentName         string
 		HeartbeatInterval string
 	}{
-		AgentName:         "clawlet",
+		AgentName:         agentName,
 		HeartbeatInterval: "30m",
 	}
 

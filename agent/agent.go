@@ -82,6 +82,11 @@ func New(opts Options) (*Agent, error) {
 		Headers:     opts.Config.LLM.Headers,
 	}
 
+	// Try to load base identity from IDENTITY.md
+	if b, err := os.ReadFile(filepath.Join(wsAbs, "IDENTITY.md")); err == nil {
+		c.SystemPrompt = string(b)
+	}
+
 	treg := &tools.Registry{
 		WorkspaceDir:        wsAbs,
 		RestrictToWorkspace: opts.Config.Tools.RestrictToWorkspaceValue(),
@@ -213,8 +218,6 @@ func (a *Agent) systemPrompt() string {
 	rt := fmt.Sprintf("%s/%s Go %s", runtime.GOOS, runtime.GOARCH, runtime.Version())
 
 	var b strings.Builder
-	b.WriteString("# clawlet\n\n")
-	b.WriteString("You are clawlet, a helpful AI assistant.\n")
 	b.WriteString("You can use tools to read/write/edit files, list directories, execute shell commands, and fetch/search the web.\n\n")
 	b.WriteString("IMPORTANT: Reply with plain text. Do not call the message tool.\n\n")
 	b.WriteString("## Current Time\n")
@@ -228,7 +231,7 @@ func (a *Agent) systemPrompt() string {
 	}
 
 	// Bootstrap files from workspace (optional).
-	for _, fn := range []string{"AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md", "IDENTITY.md"} {
+	for _, fn := range []string{"AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md"} {
 		p := filepath.Join(ws, fn)
 		if bb, err := os.ReadFile(p); err == nil && len(bb) > 0 {
 			b.WriteString("## " + fn + "\n\n")
