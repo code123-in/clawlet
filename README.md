@@ -1,7 +1,7 @@
 <div align="center">
   <img src="clawlet.png" alt="clawlet" width="500">
   <h1>Clawlet</h1>
-  <h3>Lightweight & Efficient AI Agent — Semantic Memory Search, Anywhere</h3>
+  <h3>Ultra-Lightweight&Efficient Personal AI Assistant</h3>
   <p>Single Binary · No CGO · No Runtime · No Dependencies</p>
 </div>
 
