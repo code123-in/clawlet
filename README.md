@@ -85,18 +85,6 @@ flowchart LR
     class CtxHub,Sess ctx;
 ```
 
-## Workspace (How clawlet “thinks”)
-
-Default workspace: `~/.clawlet/workspace` (override with `--workspace` or `CLAWLET_WORKSPACE`).
-
-Files in the workspace are automatically injected into the system prompt when present:
-
-- `AGENTS.md`: contributor/user instructions for the agent
-- `SOUL.md`, `USER.md`, `IDENTITY.md`: personalization and guardrails
-- `TOOLS.md`: tool reference for humans
-- `HEARTBEAT.md`: periodic tasks
-- `memory/`: long-term and daily notes
-
 ## Configuration (`~/.clawlet/config.json`)
 
 Config file: `~/.clawlet/config.json`
@@ -120,7 +108,7 @@ Minimal config (OpenRouter):
 }
 ```
 
-Agent generation defaults are configurable (aligned with nanobot defaults):
+Agent generation defaults are configurable:
 
 ```json
 {
@@ -152,6 +140,38 @@ Minimal config (Local via vLLM using the same `ollama/` route):
 ```
 
 clawlet will fill in sensible defaults for missing sections (tools, gateway, cron, heartbeat, channels).
+
+### Option: Memory search setup
+
+To enable semantic memory search, add `memorySearch` to the agent defaults:
+
+```json
+{
+  "env": {
+    "OPENAI_API_KEY": "sk-..."
+  },
+  "agents": {
+    "defaults": {
+      "memorySearch": {
+        "enabled": true,
+        "provider": "openai",
+        "model": "text-embedding-3-small"
+      }
+    }
+  }
+}
+```
+
+When enabled:
+- The agent gains `memory_search` and `memory_get` tools for retrieving past context.
+- clawlet indexes `MEMORY.md`, `memory.md`, and `memory/**/*.md` for retrieval.
+- The index DB is created at `{workspace}/.memory/index.sqlite`.
+
+When disabled (default):
+- `memorySearch.enabled` defaults to `false`; the search tools are not exposed to the model.
+- Memory files (`memory/MEMORY.md`, `memory/YYYY-MM-DD.md`) are still injected into context as usual.
+- Normal chat behavior is otherwise unchanged.
+
 
 ### Safety defaults
 
