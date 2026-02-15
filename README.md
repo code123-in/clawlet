@@ -8,6 +8,8 @@
 **Clawlet** is a lightweight and efficient personal AI agent with built-in hybrid semantic memory search — and it still ships as a single, dependency-free binary.
 Powered by bundled SQLite + sqlite-vec. No CGO, no runtime, no dependencies. Drop it on any machine and memory search just works.  
 
+This project is inspired by **OpenClaw** and **nanobot**.
+
 ## Install
 
 Download from [GitHub Releases](https://github.com/mosaxiv/clawlet/releases/latest).
