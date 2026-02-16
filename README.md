@@ -320,7 +320,28 @@ clawlet cron add --message "ping" --every 600 --channel slack --to U012345
 ```
 ## 🐳 Docker
 
-Build and run clawlet in a container:
+### Using Pre-built Images
+
+Pre-built images are available on GitHub Container Registry:
+
+```yaml
+# docker-compose.yml
+services:
+  clawlet:
+    image: ghcr.io/mosaxiv/clawlet:latest
+    volumes:
+      - ~/.clawlet:/root/.clawlet
+    ports:
+      - "18790:18790"
+    command: gateway
+    restart: unless-stopped
+```
+
+```bash
+docker compose up -d
+```
+
+### Building Locally
 
 ```bash
 # Build the image
