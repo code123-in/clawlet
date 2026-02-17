@@ -8,6 +8,9 @@
 
 version: 2
 
+env:
+  - Owner={{ .Env.Owner }}
+
 before:
   hooks:
     # You may remove this if you don't use go modules.
@@ -42,6 +45,20 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
+
+dockers_v2:
+  - id: clawlet
+    dockerfile: Dockerfile.goreleaser
+    ids:
+      - clawlet
+    images:
+      - "ghcr.io/{{ .Env.Owner }}/clawlet"
+    tags:
+      - "{{ .Tag }}"
+      - "latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64
 
 changelog:
   sort: asc
