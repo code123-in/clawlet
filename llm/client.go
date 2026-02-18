@@ -48,6 +48,8 @@ func (c *Client) Chat(ctx context.Context, messages []Message, tools []ToolDefin
 		return c.chatAnthropic(ctx, messages, tools)
 	case "gemini":
 		return c.chatGemini(ctx, messages, tools)
+	case "openai-codex":
+		return c.chatOpenAICodex(ctx, messages, tools)
 	default:
 		return nil, fmt.Errorf("unsupported llm provider: %s", strings.TrimSpace(c.Provider))
 	}
@@ -57,6 +59,8 @@ func normalizeProvider(p string) string {
 	switch strings.ToLower(strings.TrimSpace(p)) {
 	case "local":
 		return "ollama"
+	case "openai_codex", "codex":
+		return "openai-codex"
 	default:
 		return strings.ToLower(strings.TrimSpace(p))
 	}
