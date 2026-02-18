@@ -159,8 +159,6 @@ When disabled (default):
 
 ## Security
 
-clawlet はデフォルトで「公開しない」「外に出さない」設定です。
-
 ### Secure Defaults
 - `tools.restrictToWorkspace` defaults to `true` (tools can only access files inside the workspace directory)
 - `gateway.listen` defaults to `127.0.0.1:18790`
@@ -175,11 +173,6 @@ clawlet はデフォルトで「公開しない」「外に出さない」設定
 | Exec tool dangerous-command guard | ✅ | `exec` blocks unsafe shell constructs (command chaining, unsafe expansions, redirection/`tee`, dangerous patterns), blocks sensitive paths, and passes only allowlisted environment variables to subprocesses. |
 | Access via tunnel/proxy only (when externally exposed) | ✅ (operational) | If you need external access, keep direct bind local and expose only through a trusted tunnel/reverse proxy. |
 
-### Sensitive State Paths
-
-File/exec safety guards block these paths:
-- `{config_dir}/auth/**`
-- `{config_dir}/whatsapp-auth/**`
 
 ### Default Security Config (Current Defaults)
 
