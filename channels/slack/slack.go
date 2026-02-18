@@ -226,7 +226,7 @@ func (c *Channel) publishInbound(ctx context.Context, eventType, user, ch, chann
 		threadTS = ts
 	}
 
-	// Best-effort :eyes: reaction (matches nanobot behavior).
+	// Best-effort :eyes: reaction
 	if ts != "" {
 		c.mu.Lock()
 		api := c.api
