@@ -2,6 +2,7 @@ package bus
 
 import (
 	"context"
+	"strings"
 )
 
 type Delivery struct {
@@ -11,13 +12,39 @@ type Delivery struct {
 	IsDirect  bool
 }
 
+type Attachment struct {
+	ID        string
+	Name      string
+	MIMEType  string
+	Kind      string
+	SizeBytes int64
+	URL       string
+	LocalPath string
+	Headers   map[string]string
+}
+
+func InferAttachmentKind(mimeType string) string {
+	mimeType = strings.ToLower(strings.TrimSpace(mimeType))
+	switch {
+	case strings.HasPrefix(mimeType, "image/"):
+		return "image"
+	case strings.HasPrefix(mimeType, "audio/"):
+		return "audio"
+	case strings.HasPrefix(mimeType, "video/"):
+		return "video"
+	default:
+		return "file"
+	}
+}
+
 type InboundMessage struct {
-	Channel    string
-	SenderID   string
-	ChatID     string
-	Content    string
-	SessionKey string // usually "channel:chat_id"
-	Delivery   Delivery
+	Channel     string
+	SenderID    string
+	ChatID      string
+	Content     string
+	Attachments []Attachment
+	SessionKey  string // usually "channel:chat_id"
+	Delivery    Delivery
 }
 
 type OutboundMessage struct {

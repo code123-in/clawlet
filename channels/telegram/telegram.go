@@ -148,7 +148,7 @@ func (c *Channel) Send(ctx context.Context, msg bus.OutboundMessage) error {
 	return c.sendMessageWithRetry(ctx, b, params)
 }
 
-func (c *Channel) onUpdate(ctx context.Context, _ *tgbot.Bot, up *models.Update) {
+func (c *Channel) onUpdate(ctx context.Context, b *tgbot.Bot, up *models.Update) {
 	if up == nil {
 		return
 	}
@@ -166,7 +166,8 @@ func (c *Channel) onUpdate(ctx context.Context, _ *tgbot.Bot, up *models.Update)
 	}
 
 	content := telegramMessageContent(msg)
-	if content == "" {
+	attachments := c.telegramInboundAttachments(ctx, b, msg)
+	if content == "" && len(attachments) == 0 {
 		return
 	}
 
@@ -175,12 +176,13 @@ func (c *Channel) onUpdate(ctx context.Context, _ *tgbot.Bot, up *models.Update)
 	// Avoid blocking telegram worker goroutines indefinitely when bus is saturated.
 	publishCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	_ = c.bus.PublishInbound(publishCtx, bus.InboundMessage{
-		Channel:    "telegram",
-		SenderID:   senderID,
-		ChatID:     chatID,
-		Content:    content,
-		SessionKey: "telegram:" + chatID,
-		Delivery:   buildTelegramDelivery(msg),
+		Channel:     "telegram",
+		SenderID:    senderID,
+		ChatID:      chatID,
+		Content:     content,
+		Attachments: attachments,
+		SessionKey:  "telegram:" + chatID,
+		Delivery:    buildTelegramDelivery(msg),
 	})
 	cancel()
 }
@@ -329,6 +331,148 @@ func telegramMessageContent(msg *models.Message) string {
 		return text
 	}
 	return strings.TrimSpace(msg.Caption)
+}
+
+func (c *Channel) telegramInboundAttachments(ctx context.Context, b *tgbot.Bot, msg *models.Message) []bus.Attachment {
+	if msg == nil || b == nil {
+		return nil
+	}
+	candidates := make([]telegramFileRef, 0, 5)
+	if len(msg.Photo) > 0 {
+		p := msg.Photo[len(msg.Photo)-1]
+		candidates = append(candidates, telegramFileRef{
+			ID:       p.FileID,
+			Name:     "photo.jpg",
+			MIMEType: "image/jpeg",
+			Kind:     "image",
+			Size:     int64(p.FileSize),
+		})
+	}
+	if msg.Audio != nil {
+		candidates = append(candidates, telegramFileRef{
+			ID:       msg.Audio.FileID,
+			Name:     fallbackTelegramName(msg.Audio.FileName, "audio"),
+			MIMEType: msg.Audio.MimeType,
+			Kind:     "audio",
+			Size:     msg.Audio.FileSize,
+		})
+	}
+	if msg.Voice != nil {
+		candidates = append(candidates, telegramFileRef{
+			ID:       msg.Voice.FileID,
+			Name:     "voice.ogg",
+			MIMEType: fallbackTelegramMime(msg.Voice.MimeType, "audio/ogg"),
+			Kind:     "audio",
+			Size:     msg.Voice.FileSize,
+		})
+	}
+	if msg.Video != nil {
+		candidates = append(candidates, telegramFileRef{
+			ID:       msg.Video.FileID,
+			Name:     fallbackTelegramName(msg.Video.FileName, "video"),
+			MIMEType: msg.Video.MimeType,
+			Kind:     "video",
+			Size:     msg.Video.FileSize,
+		})
+	}
+	if msg.Document != nil {
+		candidates = append(candidates, telegramFileRef{
+			ID:       msg.Document.FileID,
+			Name:     fallbackTelegramName(msg.Document.FileName, "document"),
+			MIMEType: msg.Document.MimeType,
+			Kind:     bus.InferAttachmentKind(msg.Document.MimeType),
+			Size:     msg.Document.FileSize,
+		})
+	}
+
+	out := make([]bus.Attachment, 0, len(candidates))
+	for _, cand := range candidates {
+		cand.ID = strings.TrimSpace(cand.ID)
+		if cand.ID == "" {
+			continue
+		}
+		fileURL, err := c.resolveTelegramFileURL(ctx, b, cand.ID)
+		if err != nil || strings.TrimSpace(fileURL) == "" {
+			continue
+		}
+		mimeType := strings.TrimSpace(cand.MIMEType)
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
+		kind := strings.TrimSpace(cand.Kind)
+		if kind == "" {
+			kind = bus.InferAttachmentKind(mimeType)
+		}
+		out = append(out, bus.Attachment{
+			ID:        cand.ID,
+			Name:      strings.TrimSpace(cand.Name),
+			MIMEType:  mimeType,
+			Kind:      kind,
+			SizeBytes: cand.Size,
+			URL:       fileURL,
+		})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+type telegramFileRef struct {
+	ID       string
+	Name     string
+	MIMEType string
+	Kind     string
+	Size     int64
+}
+
+func fallbackTelegramName(v, fallback string) string {
+	v = strings.TrimSpace(v)
+	if v != "" {
+		return v
+	}
+	return fallback
+}
+
+func fallbackTelegramMime(v, fallback string) string {
+	v = strings.TrimSpace(v)
+	if v != "" {
+		return v
+	}
+	return fallback
+}
+
+func (c *Channel) resolveTelegramFileURL(ctx context.Context, b *tgbot.Bot, fileID string) (string, error) {
+	fileID = strings.TrimSpace(fileID)
+	if fileID == "" {
+		return "", fmt.Errorf("telegram file id is empty")
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	res, err := b.GetFile(reqCtx, &tgbot.GetFileParams{FileID: fileID})
+	if err != nil {
+		return "", err
+	}
+	if res == nil || strings.TrimSpace(res.FilePath) == "" {
+		return "", fmt.Errorf("telegram file path is empty")
+	}
+	return telegramFileURL(c.cfg.BaseURL, c.cfg.Token, res.FilePath)
+}
+
+func telegramFileURL(baseURL, token, filePath string) (string, error) {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		baseURL = "https://api.telegram.org"
+	}
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return "", fmt.Errorf("telegram token is empty")
+	}
+	filePath = strings.TrimLeft(strings.TrimSpace(filePath), "/")
+	if filePath == "" {
+		return "", fmt.Errorf("telegram file path is empty")
+	}
+	return baseURL + "/file/bot" + token + "/" + filePath, nil
 }
 
 func buildTelegramDelivery(msg *models.Message) bus.Delivery {

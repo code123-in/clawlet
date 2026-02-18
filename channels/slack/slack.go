@@ -114,7 +114,17 @@ func (c *Channel) handleEvent(ctx context.Context, ev slackevents.EventsAPIEvent
 		if strings.TrimSpace(inner.BotID) != "" || strings.TrimSpace(inner.SubType) != "" {
 			return
 		}
-		c.publishInbound(ctx, "message", inner.User, inner.Channel, inner.ChannelType, inner.TimeStamp, inner.ThreadTimeStamp, inner.Text)
+		c.publishInbound(
+			ctx,
+			"message",
+			inner.User,
+			inner.Channel,
+			inner.ChannelType,
+			inner.TimeStamp,
+			inner.ThreadTimeStamp,
+			inner.Text,
+			slackInboundAttachments(inner, c.cfg.BotToken),
+		)
 	case *slackevents.AppMentionEvent:
 		if inner == nil {
 			return
@@ -123,7 +133,7 @@ func (c *Channel) handleEvent(ctx context.Context, ev slackevents.EventsAPIEvent
 		if strings.TrimSpace(inner.BotID) != "" {
 			return
 		}
-		c.publishInbound(ctx, "app_mention", inner.User, inner.Channel, "", inner.TimeStamp, inner.ThreadTimeStamp, inner.Text)
+		c.publishInbound(ctx, "app_mention", inner.User, inner.Channel, "", inner.TimeStamp, inner.ThreadTimeStamp, inner.Text, nil)
 	default:
 		return
 	}
@@ -202,14 +212,14 @@ func (c *Channel) runSocketEventLoop(ctx context.Context, sm *socketmode.Client)
 	}
 }
 
-func (c *Channel) publishInbound(ctx context.Context, eventType, user, ch, channelType, ts, threadTS, text string) {
+func (c *Channel) publishInbound(ctx context.Context, eventType, user, ch, channelType, ts, threadTS, text string, attachments []bus.Attachment) {
 	user = strings.TrimSpace(user)
 	ch = strings.TrimSpace(ch)
 	channelType = strings.TrimSpace(channelType)
 	ts = strings.TrimSpace(ts)
 	threadTS = strings.TrimSpace(threadTS)
 	text = strings.TrimSpace(text)
-	if user == "" || ch == "" || text == "" {
+	if user == "" || ch == "" || (text == "" && len(attachments) == 0) {
 		return
 	}
 	if !c.allow.Allowed(user) {
@@ -237,13 +247,48 @@ func (c *Channel) publishInbound(ctx context.Context, eventType, user, ch, chann
 	}
 
 	_ = c.bus.PublishInbound(ctx, bus.InboundMessage{
-		Channel:    "slack",
-		SenderID:   user,
-		ChatID:     ch,
-		Content:    text,
-		SessionKey: "slack:" + ch,
-		Delivery:   buildSlackDelivery(ts, threadTS, channelType),
+		Channel:     "slack",
+		SenderID:    user,
+		ChatID:      ch,
+		Content:     text,
+		Attachments: attachments,
+		SessionKey:  "slack:" + ch,
+		Delivery:    buildSlackDelivery(ts, threadTS, channelType),
 	})
+}
+
+func slackInboundAttachments(ev *slackevents.MessageEvent, botToken string) []bus.Attachment {
+	if ev == nil || ev.Message == nil || len(ev.Message.Files) == 0 {
+		return nil
+	}
+
+	out := make([]bus.Attachment, 0, len(ev.Message.Files))
+	for _, f := range ev.Message.Files {
+		url := strings.TrimSpace(f.URLPrivateDownload)
+		if url == "" {
+			url = strings.TrimSpace(f.URLPrivate)
+		}
+		if url == "" {
+			continue
+		}
+		headers := map[string]string{}
+		if tok := strings.TrimSpace(botToken); tok != "" {
+			headers["Authorization"] = "Bearer " + tok
+		}
+		out = append(out, bus.Attachment{
+			ID:        strings.TrimSpace(f.ID),
+			Name:      strings.TrimSpace(f.Name),
+			MIMEType:  strings.TrimSpace(f.Mimetype),
+			Kind:      bus.InferAttachmentKind(f.Mimetype),
+			SizeBytes: int64(f.Size),
+			URL:       url,
+			Headers:   headers,
+		})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func (c *Channel) allowedByPolicy(eventType, chatID, channelType, text string) bool {

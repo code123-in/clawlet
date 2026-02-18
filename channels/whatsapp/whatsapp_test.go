@@ -113,6 +113,45 @@ func TestWhatsAppReplyToID(t *testing.T) {
 	}
 }
 
+func TestWhatsAppInboundAttachments(t *testing.T) {
+	msg := &waE2E.Message{
+		ImageMessage: &waE2E.ImageMessage{
+			Mimetype:   new("image/jpeg"),
+			FileLength: new(uint64),
+		},
+		AudioMessage: &waE2E.AudioMessage{
+			Mimetype:   new("audio/ogg"),
+			FileLength: new(uint64),
+		},
+		DocumentMessage: &waE2E.DocumentMessage{
+			Mimetype:   new("application/pdf"),
+			FileName:   new("memo.pdf"),
+			FileLength: new(uint64),
+		},
+	}
+	got := whatsappInboundAttachments(msg)
+	if len(got) != 3 {
+		t.Fatalf("attachments=%d", len(got))
+	}
+	kinds := map[string]bool{}
+	for _, a := range got {
+		kinds[a.Kind] = true
+	}
+	if !kinds["image"] || !kinds["audio"] || !kinds["file"] {
+		t.Fatalf("unexpected kinds: %+v", got)
+	}
+	foundDoc := false
+	for _, a := range got {
+		if a.Kind == "file" && a.Name == "memo.pdf" {
+			foundDoc = true
+			break
+		}
+	}
+	if !foundDoc {
+		t.Fatalf("memo.pdf not found: %+v", got)
+	}
+}
+
 func TestShouldRetryWhatsAppSend(t *testing.T) {
 	t.Run("retry on rate limit", func(t *testing.T) {
 		retry, wait := shouldRetryWhatsAppSend(whatsmeow.ErrIQRateOverLimit, 1)

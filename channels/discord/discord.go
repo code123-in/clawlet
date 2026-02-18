@@ -157,7 +157,8 @@ func (c *Channel) onMessageCreate(s *discordgo.Session, m *discordgo.MessageCrea
 	}
 	chID := strings.TrimSpace(m.ChannelID)
 	content := strings.TrimSpace(m.Content)
-	if chID == "" || content == "" {
+	attachments := discordInboundAttachments(m)
+	if chID == "" || (content == "" && len(attachments) == 0) {
 		return
 	}
 
@@ -169,13 +170,43 @@ func (c *Channel) onMessageCreate(s *discordgo.Session, m *discordgo.MessageCrea
 	c.mu.Unlock()
 
 	_ = c.bus.PublishInbound(ctx, bus.InboundMessage{
-		Channel:    "discord",
-		SenderID:   m.Author.ID,
-		ChatID:     chID,
-		Content:    content,
-		SessionKey: "discord:" + chID,
-		Delivery:   buildDiscordDelivery(m),
+		Channel:     "discord",
+		SenderID:    m.Author.ID,
+		ChatID:      chID,
+		Content:     content,
+		Attachments: attachments,
+		SessionKey:  "discord:" + chID,
+		Delivery:    buildDiscordDelivery(m),
 	})
+}
+
+func discordInboundAttachments(m *discordgo.MessageCreate) []bus.Attachment {
+	if m == nil || m.Message == nil || len(m.Attachments) == 0 {
+		return nil
+	}
+	out := make([]bus.Attachment, 0, len(m.Attachments))
+	for _, a := range m.Attachments {
+		if a == nil {
+			continue
+		}
+		url := strings.TrimSpace(a.URL)
+		if url == "" {
+			continue
+		}
+		mimeType := strings.TrimSpace(a.ContentType)
+		out = append(out, bus.Attachment{
+			ID:        strings.TrimSpace(a.ID),
+			Name:      strings.TrimSpace(a.Filename),
+			MIMEType:  mimeType,
+			Kind:      bus.InferAttachmentKind(mimeType),
+			SizeBytes: int64(a.Size),
+			URL:       url,
+		})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func resolveDiscordReplyTarget(msg bus.OutboundMessage) string {

@@ -110,3 +110,33 @@ func TestShouldRetryDiscordSend(t *testing.T) {
 		}
 	})
 }
+
+func TestDiscordInboundAttachments(t *testing.T) {
+	msg := &discordgo.MessageCreate{
+		Message: &discordgo.Message{
+			Attachments: []*discordgo.MessageAttachment{
+				{
+					ID:          "a1",
+					Filename:    "pic.jpg",
+					ContentType: "image/jpeg",
+					Size:        1024,
+					URL:         "https://cdn.discordapp.com/attachments/pic.jpg",
+				},
+				{
+					ID:          "a2",
+					Filename:    "note.mp3",
+					ContentType: "audio/mpeg",
+					Size:        2048,
+					URL:         "https://cdn.discordapp.com/attachments/note.mp3",
+				},
+			},
+		},
+	}
+	got := discordInboundAttachments(msg)
+	if len(got) != 2 {
+		t.Fatalf("attachments=%d", len(got))
+	}
+	if got[0].Kind != "image" || got[1].Kind != "audio" {
+		t.Fatalf("unexpected kinds: %+v", got)
+	}
+}

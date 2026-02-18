@@ -208,7 +208,8 @@ func (c *Channel) handleIncomingMessage(evt *events.Message) {
 	}
 
 	content := whatsappMessageContent(evt.Message)
-	if content == "" {
+	attachments := whatsappInboundAttachments(evt.Message)
+	if content == "" && len(attachments) == 0 {
 		return
 	}
 
@@ -223,12 +224,13 @@ func (c *Channel) handleIncomingMessage(evt *events.Message) {
 
 	publishCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	_ = c.bus.PublishInbound(publishCtx, bus.InboundMessage{
-		Channel:    "whatsapp",
-		SenderID:   senderID,
-		ChatID:     chatID,
-		Content:    content,
-		SessionKey: "whatsapp:" + chatID,
-		Delivery:   delivery,
+		Channel:     "whatsapp",
+		SenderID:    senderID,
+		ChatID:      chatID,
+		Content:     content,
+		Attachments: attachments,
+		SessionKey:  "whatsapp:" + chatID,
+		Delivery:    delivery,
 	})
 	cancel()
 }
@@ -486,6 +488,58 @@ func whatsappReplyToID(msg *waE2E.Message) string {
 		}
 	}
 	return ""
+}
+
+func whatsappInboundAttachments(msg *waE2E.Message) []bus.Attachment {
+	if msg == nil {
+		return nil
+	}
+	out := make([]bus.Attachment, 0, 4)
+	if image := msg.GetImageMessage(); image != nil {
+		mimeType := strings.TrimSpace(image.GetMimetype())
+		out = append(out, bus.Attachment{
+			Name:      "image",
+			MIMEType:  mimeType,
+			Kind:      bus.InferAttachmentKind(mimeType),
+			SizeBytes: int64(image.GetFileLength()),
+		})
+	}
+	if video := msg.GetVideoMessage(); video != nil {
+		mimeType := strings.TrimSpace(video.GetMimetype())
+		out = append(out, bus.Attachment{
+			Name:      "video",
+			MIMEType:  mimeType,
+			Kind:      bus.InferAttachmentKind(mimeType),
+			SizeBytes: int64(video.GetFileLength()),
+		})
+	}
+	if doc := msg.GetDocumentMessage(); doc != nil {
+		mimeType := strings.TrimSpace(doc.GetMimetype())
+		out = append(out, bus.Attachment{
+			Name:      strings.TrimSpace(doc.GetFileName()),
+			MIMEType:  mimeType,
+			Kind:      bus.InferAttachmentKind(mimeType),
+			SizeBytes: int64(doc.GetFileLength()),
+		})
+	}
+	if audio := msg.GetAudioMessage(); audio != nil {
+		mimeType := strings.TrimSpace(audio.GetMimetype())
+		out = append(out, bus.Attachment{
+			Name:      "voice",
+			MIMEType:  mimeType,
+			Kind:      bus.InferAttachmentKind(mimeType),
+			SizeBytes: int64(audio.GetFileLength()),
+		})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	for i := range out {
+		if strings.TrimSpace(out[i].Name) == "" {
+			out[i].Name = "attachment"
+		}
+	}
+	return out
 }
 
 func appendUniqueTrimmed(parts []string, v string) []string {

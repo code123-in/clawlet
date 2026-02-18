@@ -158,3 +158,34 @@ func TestIsTelegramParseError(t *testing.T) {
 		t.Fatalf("unexpected parse error detection")
 	}
 }
+
+func TestTelegramFileURL(t *testing.T) {
+	t.Run("default base url", func(t *testing.T) {
+		got, err := telegramFileURL("", "123:abc", "photos/a.jpg")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := "https://api.telegram.org/file/bot123:abc/photos/a.jpg"
+		if got != want {
+			t.Fatalf("url=%q", got)
+		}
+	})
+
+	t.Run("custom base url", func(t *testing.T) {
+		got, err := telegramFileURL("https://telegram.example", "123:abc", "/voice/v.ogg")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := "https://telegram.example/file/bot123:abc/voice/v.ogg"
+		if got != want {
+			t.Fatalf("url=%q", got)
+		}
+	})
+
+	t.Run("missing token", func(t *testing.T) {
+		_, err := telegramFileURL("", "", "a")
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+}

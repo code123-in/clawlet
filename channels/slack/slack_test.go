@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/mosaxiv/clawlet/bus"
+	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/slackevents"
 )
 
 func TestStripBotMention(t *testing.T) {
@@ -109,4 +111,40 @@ func TestBuildSlackDelivery(t *testing.T) {
 			t.Fatalf("unexpected delivery: %+v", d)
 		}
 	})
+}
+
+func TestSlackInboundAttachments(t *testing.T) {
+	ev := &slackevents.MessageEvent{
+		Message: &slack.Msg{
+			Files: []slack.File{
+				{
+					ID:                 "F1",
+					Name:               "photo.png",
+					Mimetype:           "image/png",
+					Size:               1234,
+					URLPrivateDownload: "https://files.slack.com/files-pri/T/F/photo.png",
+				},
+				{
+					ID:         "F2",
+					Name:       "voice.mp3",
+					Mimetype:   "audio/mpeg",
+					Size:       99,
+					URLPrivate: "https://files.slack.com/files-pri/T/F/voice.mp3",
+				},
+			},
+		},
+	}
+	got := slackInboundAttachments(ev, "xoxb-test")
+	if len(got) != 2 {
+		t.Fatalf("attachments=%d", len(got))
+	}
+	if got[0].Kind != "image" || got[1].Kind != "audio" {
+		t.Fatalf("unexpected kinds: %+v", got)
+	}
+	if got[0].Headers["Authorization"] == "" {
+		t.Fatalf("missing auth header")
+	}
+	if got[1].URL == "" {
+		t.Fatalf("missing url")
+	}
 }
