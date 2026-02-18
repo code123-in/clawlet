@@ -163,6 +163,34 @@ clawlet is conservative by default:
 
 - `tools.restrictToWorkspace` defaults to `true` (tools can only access files inside the workspace directory)
 
+### Multimodal input (audio/image/attachments)
+
+Inbound channel messages can include attachments. clawlet can:
+
+- send images to vision-capable models,
+- transcribe audio using the configured provider,
+- and inline text-like file attachments into the user context.
+
+Configure under `tools.media`:
+
+```json
+{
+  "tools": {
+    "media": {
+      "enabled": true,
+      "audioEnabled": true,
+      "imageEnabled": true,
+      "attachmentEnabled": true,
+      "maxAttachments": 4,
+      "maxFileBytes": 20971520,
+      "maxInlineImageBytes": 5242880,
+      "maxTextChars": 12000,
+      "downloadTimeoutSec": 20
+    }
+  }
+}
+```
+
 ## Chat Apps
 
 Chat app integrations are configured under `channels` (examples below).
