@@ -157,9 +157,7 @@ When disabled (default):
 - Normal chat behavior is otherwise unchanged.
 
 
-## Tools
-
-### Safety defaults
+### Security
 
 clawlet is conservative by default:
 
@@ -173,13 +171,15 @@ clawlet is conservative by default:
 | --- | --- | --- |
 | Gateway not publicly exposed | ✅ | Default bind is localhost only. Public bind is rejected unless `gateway.allowPublicBind=true` is explicitly set. |
 | Filesystem scoped (no `/`) | ✅ | File tools block root path, path traversal, encoded traversal, symlink escapes, and sensitive state paths. |
-| Access via tunnel only | ℹ️ | clawlet has no built-in public webhook gateway. If you intentionally expose runtime endpoints in your own stack, use a trusted tunnel/proxy and keep direct public bind disabled. |
+| Exec tool hardened | ✅ | `exec` blocks unsafe shell constructs (command chaining, unsafe expansions, redirection/`tee`, dangerous patterns), blocks sensitive paths, and passes only allowlisted environment variables to subprocesses. |
 
 Sensitive state paths blocked by file/exec safety guards:
 - `{config_dir}/auth/**`
 - `{config_dir}/whatsapp-auth/**`
 
-### Multimodal input (audio/image/attachments)
+## Tools
+
+## Multimodal input (audio/image/attachments)
 
 Inbound channel messages can include attachments. clawlet can:
 
