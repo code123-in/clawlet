@@ -610,12 +610,6 @@ func parseRoutedModel(s string) (provider string, model string) {
 	if after, ok := strings.CutPrefix(s, "openai-codex/"); ok {
 		return "openai-codex", after
 	}
-	if after, ok := strings.CutPrefix(s, "openai_codex/"); ok {
-		return "openai-codex", after
-	}
-	if after, ok := strings.CutPrefix(s, "codex/"); ok {
-		return "openai-codex", after
-	}
 	if after, ok := strings.CutPrefix(s, "openai/"); ok {
 		return "openai", after
 	}
@@ -641,8 +635,6 @@ func canonicalProvider(s string) string {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "local":
 		return "ollama"
-	case "openai_codex", "codex":
-		return "openai-codex"
 	default:
 		return strings.ToLower(strings.TrimSpace(s))
 	}

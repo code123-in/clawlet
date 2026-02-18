@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/mosaxiv/clawlet/llm"
 	"github.com/urfave/cli/v3"
 )
+
+const oauthProviderOpenAICodex = "openai-codex"
 
 func cmdProvider() *cli.Command {
 	return &cli.Command{
@@ -28,26 +29,15 @@ func cmdProvider() *cli.Command {
 					if cmd.Args().Len() < 1 {
 						return cli.Exit("usage: clawlet provider login <provider>", 2)
 					}
-					key := normalizeOAuthProvider(cmd.Args().Get(0))
-					switch key {
-					case "openai-codex":
+					switch cmd.Args().Get(0) {
+					case oauthProviderOpenAICodex:
 						return loginOpenAICodex(ctx, cmd.Bool("device-code"))
 					default:
-						return cli.Exit(fmt.Sprintf("unsupported oauth provider: %s (supported: openai-codex)", cmd.Args().Get(0)), 1)
+						return cli.Exit(fmt.Sprintf("unsupported oauth provider: %s (supported: %s)", cmd.Args().Get(0), oauthProviderOpenAICodex), 1)
 					}
 				},
 			},
 		},
-	}
-}
-
-func normalizeOAuthProvider(s string) string {
-	v := strings.ToLower(strings.TrimSpace(s))
-	switch v {
-	case "openai_codex", "codex":
-		return "openai-codex"
-	default:
-		return v
 	}
 }
 

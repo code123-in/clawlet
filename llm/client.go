@@ -59,8 +59,6 @@ func normalizeProvider(p string) string {
 	switch strings.ToLower(strings.TrimSpace(p)) {
 	case "local":
 		return "ollama"
-	case "openai_codex", "codex":
-		return "openai-codex"
 	default:
 		return strings.ToLower(strings.TrimSpace(p))
 	}

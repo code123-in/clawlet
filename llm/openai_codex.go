@@ -378,12 +378,6 @@ func stripCodexModelPrefix(model string) string {
 	if after, ok := strings.CutPrefix(m, "openai-codex/"); ok {
 		return after
 	}
-	if after, ok := strings.CutPrefix(m, "openai_codex/"); ok {
-		return after
-	}
-	if after, ok := strings.CutPrefix(m, "codex/"); ok {
-		return after
-	}
 	return m
 }
 
