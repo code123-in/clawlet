@@ -10,9 +10,79 @@ import (
 	"strings"
 )
 
+var sensitivePathSuffixes = []string{
+	filepath.Join(".clawlet", "auth"),
+	filepath.Join(".clawlet", "whatsapp-auth"),
+}
+
+func hasParentTraversal(path string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
+		if part == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+func isSameOrChildPath(path string, root string) bool {
+	path = filepath.Clean(path)
+	root = filepath.Clean(root)
+	if path == root {
+		return true
+	}
+	return strings.HasPrefix(path, root+string(filepath.Separator))
+}
+
+func blockedSensitivePaths() []string {
+	home, err := os.UserHomeDir()
+	if err != nil || strings.TrimSpace(home) == "" {
+		return nil
+	}
+	out := make([]string, 0, len(sensitivePathSuffixes))
+	for _, suffix := range sensitivePathSuffixes {
+		out = append(out, filepath.Clean(filepath.Join(home, suffix)))
+	}
+	return out
+}
+
+func ensurePathAllowedByPolicy(abs string) error {
+	abs = filepath.Clean(abs)
+	if abs == string(filepath.Separator) {
+		return errors.New("path is blocked by safety policy: /")
+	}
+	for _, blocked := range blockedSensitivePaths() {
+		if isSameOrChildPath(abs, blocked) {
+			return fmt.Errorf("path is blocked by safety policy: %s", abs)
+		}
+	}
+	return nil
+}
+
+func (r *Registry) workspaceAbs() (string, error) {
+	wsAbs, err := filepath.Abs(r.WorkspaceDir)
+	if err != nil {
+		return "", err
+	}
+	wsAbs = filepath.Clean(wsAbs)
+	if wsAbs == string(filepath.Separator) {
+		return "", errors.New("workspace root '/' is not allowed when tools are restricted")
+	}
+	return wsAbs, nil
+}
+
 func (r *Registry) resolvePath(p string) (string, error) {
 	if strings.TrimSpace(p) == "" {
 		return "", errors.New("path is empty")
+	}
+	if strings.ContainsRune(p, '\x00') {
+		return "", errors.New("path contains null byte")
+	}
+	if hasParentTraversal(p) {
+		return "", errors.New("path traversal is not allowed")
+	}
+	lower := strings.ToLower(p)
+	if strings.Contains(lower, "..%2f") || strings.Contains(lower, "%2f..") || strings.Contains(lower, "%2e%2e") {
+		return "", errors.New("encoded path traversal is not allowed")
 	}
 	// Expand "~/".
 	if strings.HasPrefix(p, "~/") || p == "~" {
@@ -37,24 +107,40 @@ func (r *Registry) resolvePath(p string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if err := ensurePathAllowedByPolicy(abs); err != nil {
+		return "", err
+	}
 
 	if !r.RestrictToWorkspace {
 		return abs, nil
 	}
 
-	wsAbs, err := filepath.Abs(r.WorkspaceDir)
+	wsAbs, err := r.workspaceAbs()
 	if err != nil {
 		return "", err
 	}
-	wsAbs = filepath.Clean(wsAbs)
 	if abs == wsAbs {
 		return abs, nil
 	}
-	prefix := wsAbs + string(filepath.Separator)
-	if !strings.HasPrefix(abs, prefix) {
+	if !isSameOrChildPath(abs, wsAbs) {
 		return "", fmt.Errorf("path is outside workspace: %s", abs)
 	}
-	return abs, nil
+
+	resolved, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return abs, nil
+		}
+		return "", err
+	}
+	resolved = filepath.Clean(resolved)
+	if err := ensurePathAllowedByPolicy(resolved); err != nil {
+		return "", err
+	}
+	if !isSameOrChildPath(resolved, wsAbs) {
+		return "", fmt.Errorf("path is outside workspace: %s", resolved)
+	}
+	return resolved, nil
 }
 
 func (r *Registry) readFile(path string) (string, error) {
@@ -79,13 +165,34 @@ func (r *Registry) writeFile(path, content string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+	parent := filepath.Dir(abs)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(abs, []byte(content), 0o644); err != nil {
+	parentResolved, err := filepath.EvalSymlinks(parent)
+	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("wrote %d bytes to %s", len(content), abs), nil
+	if r.RestrictToWorkspace {
+		wsAbs, err := r.workspaceAbs()
+		if err != nil {
+			return "", err
+		}
+		if !isSameOrChildPath(parentResolved, wsAbs) {
+			return "", fmt.Errorf("path is outside workspace: %s", parentResolved)
+		}
+	}
+	target := filepath.Join(parentResolved, filepath.Base(abs))
+	if err := ensurePathAllowedByPolicy(target); err != nil {
+		return "", err
+	}
+	if info, err := os.Lstat(target); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("refusing to write through symlink: %s", target)
+	}
+	if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("wrote %d bytes to %s", len(content), target), nil
 }
 
 func (r *Registry) editFile(path string, startLine, endLine int, newText string) (string, error) {
