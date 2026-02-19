@@ -1,12 +1,11 @@
 <div align="center">
   <img src="clawlet.png" alt="clawlet" width="500">
   <h1>Clawlet</h1>
-  <h3>Ultra-Lightweight&Efficient Personal AI Assistant</h3>
-  <p>Single Binary · No CGO · No Runtime · No Dependencies</p>
+  <h3>Ultra-lightweight and efficient personal AI assistant</h3>
 </div>
 
-**Clawlet** is a lightweight and efficient personal AI agent with built-in hybrid semantic memory search — and it still ships as a single, dependency-free binary.
-Powered by bundled SQLite + sqlite-vec. No CGO, no runtime, no dependencies. Drop it on any machine and memory search just works.  
+**Clawlet** is a lightweight personal AI agent with hybrid semantic memory search — a single static binary with no runtime and no CGO.  
+Bundled SQLite + sqlite-vec. Drop it on any machine and memory search just works.
 
 This project is inspired by **OpenClaw** and **nanobot**.
 
