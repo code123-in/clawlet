@@ -96,3 +96,14 @@ Read a bundled skill (SKILL.md) by name.
 read_skill(name: string) -> string
 ```
 
+### find_skills
+Search remote skill registries for installable skills.
+```text
+find_skills(query: string, limit?: int) -> string
+```
+
+### install_skill
+Install a skill into `workspace/skills`.
+```text
+install_skill(slug: string, registry: string, version?: string, force?: bool) -> string
+```

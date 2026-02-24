@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mosaxiv/clawlet/bus"
@@ -29,12 +30,16 @@ type Registry struct {
 	// Unknown tool names are ignored.
 	AllowTools []string
 
-	BraveAPIKey  string
-	Outbound     func(ctx context.Context, msg bus.OutboundMessage) error
-	Spawn        func(ctx context.Context, task, label, originChannel, originChatID string) (string, error)
-	Cron         *cron.Service
-	ReadSkill    func(name string) (string, bool)
-	MemorySearch memory.SearchManager
+	BraveAPIKey             string
+	Outbound                func(ctx context.Context, msg bus.OutboundMessage) error
+	Spawn                   func(ctx context.Context, task, label, originChannel, originChatID string) (string, error)
+	Cron                    *cron.Service
+	ReadSkill               func(name string) (string, bool)
+	SkillRegistry           SkillRegistry
+	SkillSearchDefaultLimit int
+	MemorySearch            memory.SearchManager
+
+	skillInstallMu sync.Mutex
 }
 
 func (r *Registry) Definitions() []llm.ToolDefinition {
@@ -48,6 +53,9 @@ func (r *Registry) Definitions() []llm.ToolDefinition {
 	}
 	if r.ReadSkill != nil {
 		defs = append(defs, defReadSkill())
+	}
+	if r.SkillRegistry != nil {
+		defs = append(defs, defFindSkills(), defInstallSkill())
 	}
 	if strings.TrimSpace(r.BraveAPIKey) != "" {
 		defs = append(defs, defWebSearch())
@@ -155,6 +163,26 @@ func (r *Registry) Execute(ctx context.Context, tctx Context, name string, args 
 			return "", err
 		}
 		return r.readSkill(a.Name)
+	case "find_skills":
+		var a struct {
+			Query string `json:"query"`
+			Limit int    `json:"limit"`
+		}
+		if err := json.Unmarshal(args, &a); err != nil {
+			return "", err
+		}
+		return r.findSkills(ctx, a.Query, a.Limit)
+	case "install_skill":
+		var a struct {
+			Slug     string `json:"slug"`
+			Registry string `json:"registry"`
+			Version  string `json:"version"`
+			Force    bool   `json:"force"`
+		}
+		if err := json.Unmarshal(args, &a); err != nil {
+			return "", err
+		}
+		return r.installSkill(ctx, a.Slug, a.Registry, a.Version, a.Force)
 	case "web_fetch":
 		var a struct {
 			URL         string `json:"url"`

@@ -100,6 +100,12 @@ func applyEnvOverrides(cfg *config.Config) {
 		}
 		cfg.Env["GOOGLE_API_KEY"] = v
 	}
+	if v := os.Getenv("CLAWLET_SKILLS_REGISTRY_AUTH_TOKEN"); v != "" {
+		cfg.Tools.Skills.Registry.AuthToken = v
+	}
+	if v := os.Getenv("CLAWLET_SKILLS_REGISTRY_BASE_URL"); v != "" {
+		cfg.Tools.Skills.Registry.BaseURL = v
+	}
 
 	if cfg.LLM.Headers == nil {
 		cfg.LLM.Headers = map[string]string{}

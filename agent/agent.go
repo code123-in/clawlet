@@ -93,6 +93,7 @@ func New(opts Options) (*Agent, error) {
 			return l.Load(name)
 		},
 	}
+	treg.SkillRegistry, treg.SkillSearchDefaultLimit = buildSkillRegistry(opts.Config)
 	memMgr, err := memory.NewIndexManager(opts.Config, wsAbs)
 	if err != nil {
 		return nil, err

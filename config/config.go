@@ -148,10 +148,11 @@ func (c MemorySearchSyncConfig) OnSearchValue() bool {
 }
 
 type ToolsConfig struct {
-	RestrictToWorkspace *bool            `json:"restrictToWorkspace"`
-	Exec                ExecToolConfig   `json:"exec"`
-	Web                 WebToolsConfig   `json:"web"`
-	Media               MediaToolsConfig `json:"media"`
+	RestrictToWorkspace *bool             `json:"restrictToWorkspace"`
+	Exec                ExecToolConfig    `json:"exec"`
+	Web                 WebToolsConfig    `json:"web"`
+	Skills              SkillsToolsConfig `json:"skills"`
+	Media               MediaToolsConfig  `json:"media"`
 }
 
 func (c ToolsConfig) RestrictToWorkspaceValue() bool {
@@ -167,6 +168,30 @@ type ExecToolConfig struct {
 
 type WebToolsConfig struct {
 	BraveAPIKey string `json:"braveApiKey"`
+}
+
+type SkillsToolsConfig struct {
+	Enabled    *bool                `json:"enabled,omitempty"`
+	MaxResults int                  `json:"maxResults,omitempty"`
+	Registry   SkillsRegistryConfig `json:"registry"`
+}
+
+func (c SkillsToolsConfig) EnabledValue() bool {
+	if c.Enabled == nil {
+		return false
+	}
+	return *c.Enabled
+}
+
+type SkillsRegistryConfig struct {
+	BaseURL          string `json:"baseURL,omitempty"`
+	AuthToken        string `json:"authToken,omitempty"`
+	SearchPath       string `json:"searchPath,omitempty"`
+	SkillsPath       string `json:"skillsPath,omitempty"`
+	DownloadPath     string `json:"downloadPath,omitempty"`
+	TimeoutSec       int    `json:"timeoutSec,omitempty"`
+	MaxZipBytes      int64  `json:"maxZipBytes,omitempty"`
+	MaxResponseBytes int64  `json:"maxResponseBytes,omitempty"`
 }
 
 type MediaToolsConfig struct {
@@ -308,6 +333,14 @@ const (
 	DefaultAnthropicBaseURL                = "https://api.anthropic.com"
 	DefaultGeminiBaseURL                   = "https://generativelanguage.googleapis.com/v1beta"
 	DefaultOllamaBaseURL                   = "http://localhost:11434/v1"
+	DefaultSkillsMaxResults                = 5
+	DefaultSkillsRegistryBaseURL           = "https://clawhub.ai"
+	DefaultSkillsRegistrySearchPath        = "/api/v1/search"
+	DefaultSkillsRegistrySkillsPath        = "/api/v1/skills"
+	DefaultSkillsRegistryDownloadPath      = "/api/v1/download"
+	DefaultSkillsRegistryTimeoutSec        = 30
+	DefaultSkillsRegistryMaxZipBytes       = int64(50 << 20)
+	DefaultSkillsRegistryMaxResponseBytes  = int64(2 << 20)
 	DefaultMediaMaxAttachments             = 4
 	DefaultMediaMaxFileBytes               = int64(20 << 20)
 	DefaultMediaMaxInlineImageBytes        = int64(5 << 20)
@@ -323,6 +356,7 @@ func Default() *Config {
 	memSearchVectorEnabled := true
 	memSearchCacheEnabled := true
 	memSearchOnSearch := true
+	skillsEnabled := false
 	mediaEnabled := true
 	mediaAudioEnabled := true
 	mediaImageEnabled := true
@@ -385,6 +419,20 @@ func Default() *Config {
 			},
 			Web: WebToolsConfig{
 				BraveAPIKey: "",
+			},
+			Skills: SkillsToolsConfig{
+				Enabled:    &skillsEnabled,
+				MaxResults: DefaultSkillsMaxResults,
+				Registry: SkillsRegistryConfig{
+					BaseURL:          DefaultSkillsRegistryBaseURL,
+					AuthToken:        "",
+					SearchPath:       DefaultSkillsRegistrySearchPath,
+					SkillsPath:       DefaultSkillsRegistrySkillsPath,
+					DownloadPath:     DefaultSkillsRegistryDownloadPath,
+					TimeoutSec:       DefaultSkillsRegistryTimeoutSec,
+					MaxZipBytes:      DefaultSkillsRegistryMaxZipBytes,
+					MaxResponseBytes: DefaultSkillsRegistryMaxResponseBytes,
+				},
 			},
 			Media: MediaToolsConfig{
 				Enabled:             &mediaEnabled,
@@ -458,6 +506,39 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Tools.Exec.TimeoutSec <= 0 {
 		cfg.Tools.Exec.TimeoutSec = 60
+	}
+	if cfg.Tools.Skills.Enabled == nil {
+		v := false
+		cfg.Tools.Skills.Enabled = &v
+	}
+	if cfg.Tools.Skills.MaxResults <= 0 {
+		cfg.Tools.Skills.MaxResults = DefaultSkillsMaxResults
+	}
+	cfg.Tools.Skills.Registry.BaseURL = strings.TrimSpace(cfg.Tools.Skills.Registry.BaseURL)
+	if cfg.Tools.Skills.Registry.BaseURL == "" {
+		cfg.Tools.Skills.Registry.BaseURL = DefaultSkillsRegistryBaseURL
+	}
+	cfg.Tools.Skills.Registry.AuthToken = strings.TrimSpace(cfg.Tools.Skills.Registry.AuthToken)
+	cfg.Tools.Skills.Registry.SearchPath = strings.TrimSpace(cfg.Tools.Skills.Registry.SearchPath)
+	if cfg.Tools.Skills.Registry.SearchPath == "" {
+		cfg.Tools.Skills.Registry.SearchPath = DefaultSkillsRegistrySearchPath
+	}
+	cfg.Tools.Skills.Registry.SkillsPath = strings.TrimSpace(cfg.Tools.Skills.Registry.SkillsPath)
+	if cfg.Tools.Skills.Registry.SkillsPath == "" {
+		cfg.Tools.Skills.Registry.SkillsPath = DefaultSkillsRegistrySkillsPath
+	}
+	cfg.Tools.Skills.Registry.DownloadPath = strings.TrimSpace(cfg.Tools.Skills.Registry.DownloadPath)
+	if cfg.Tools.Skills.Registry.DownloadPath == "" {
+		cfg.Tools.Skills.Registry.DownloadPath = DefaultSkillsRegistryDownloadPath
+	}
+	if cfg.Tools.Skills.Registry.TimeoutSec <= 0 {
+		cfg.Tools.Skills.Registry.TimeoutSec = DefaultSkillsRegistryTimeoutSec
+	}
+	if cfg.Tools.Skills.Registry.MaxZipBytes <= 0 {
+		cfg.Tools.Skills.Registry.MaxZipBytes = DefaultSkillsRegistryMaxZipBytes
+	}
+	if cfg.Tools.Skills.Registry.MaxResponseBytes <= 0 {
+		cfg.Tools.Skills.Registry.MaxResponseBytes = DefaultSkillsRegistryMaxResponseBytes
 	}
 	if cfg.Tools.Media.Enabled == nil {
 		v := true

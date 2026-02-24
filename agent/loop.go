@@ -113,6 +113,7 @@ func NewLoop(opts LoopOptions) (*Loop, error) {
 			return sloader.Load(name)
 		},
 	}
+	treg.SkillRegistry, treg.SkillSearchDefaultLimit = buildSkillRegistry(opts.Config)
 	memMgr, err := memory.NewIndexManager(opts.Config, ws)
 	if err != nil {
 		return nil, err

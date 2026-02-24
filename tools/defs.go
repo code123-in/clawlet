@@ -109,6 +109,44 @@ func defReadSkill() llm.ToolDefinition {
 	}
 }
 
+func defFindSkills() llm.ToolDefinition {
+	return llm.ToolDefinition{
+		Type: "function",
+		Function: llm.FunctionDefinition{
+			Name:        "find_skills",
+			Description: "Search remote skill registries for installable skills.",
+			Parameters: llm.JSONSchema{
+				Type: "object",
+				Properties: map[string]llm.JSONSchema{
+					"query": {Type: "string", Description: "Search query (e.g. github, docker, summarize)."},
+					"limit": {Type: "integer", Description: "Maximum results to return (1-20)."},
+				},
+				Required: []string{"query"},
+			},
+		},
+	}
+}
+
+func defInstallSkill() llm.ToolDefinition {
+	return llm.ToolDefinition{
+		Type: "function",
+		Function: llm.FunctionDefinition{
+			Name:        "install_skill",
+			Description: "Install a skill from a configured registry into workspace/skills.",
+			Parameters: llm.JSONSchema{
+				Type: "object",
+				Properties: map[string]llm.JSONSchema{
+					"slug":     {Type: "string", Description: "Skill slug to install."},
+					"registry": {Type: "string", Description: "Registry name (currently: clawhub)."},
+					"version":  {Type: "string", Description: "Optional version. If omitted, latest is used."},
+					"force":    {Type: "boolean", Description: "Reinstall even when target already exists."},
+				},
+				Required: []string{"slug", "registry"},
+			},
+		},
+	}
+}
+
 func defWebFetch() llm.ToolDefinition {
 	return llm.ToolDefinition{
 		Type: "function",
