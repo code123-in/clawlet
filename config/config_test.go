@@ -290,3 +290,34 @@ func TestGatewayDefaults_LocalhostAndNoPublicBind(t *testing.T) {
 		t.Fatalf("loaded gateway.allowPublicBind must be false")
 	}
 }
+
+func TestSkillsRegistryDefaults(t *testing.T) {
+	cfg := Default()
+	if cfg.Tools.Skills.EnabledValue() {
+		t.Fatalf("skills.enabled should be false by default")
+	}
+	if cfg.Tools.Skills.MaxResults != DefaultSkillsMaxResults {
+		t.Fatalf("skills.maxResults=%d", cfg.Tools.Skills.MaxResults)
+	}
+	if cfg.Tools.Skills.Registry.BaseURL != DefaultSkillsRegistryBaseURL {
+		t.Fatalf("skills.registry.baseURL=%q", cfg.Tools.Skills.Registry.BaseURL)
+	}
+	if cfg.Tools.Skills.Registry.SearchPath != DefaultSkillsRegistrySearchPath {
+		t.Fatalf("skills.registry.searchPath=%q", cfg.Tools.Skills.Registry.SearchPath)
+	}
+
+	tmp := t.TempDir() + "/cfg.json"
+	if err := Save(tmp, cfg); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	loaded, err := Load(tmp)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if loaded.Tools.Skills.Registry.BaseURL != DefaultSkillsRegistryBaseURL {
+		t.Fatalf("loaded skills.registry.baseURL=%q", loaded.Tools.Skills.Registry.BaseURL)
+	}
+	if loaded.Tools.Skills.Registry.TimeoutSec != DefaultSkillsRegistryTimeoutSec {
+		t.Fatalf("loaded skills.registry.timeoutSec=%d", loaded.Tools.Skills.Registry.TimeoutSec)
+	}
+}
